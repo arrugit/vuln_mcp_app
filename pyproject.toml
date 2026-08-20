@@ -1,0 +1,30 @@
+[project]
+name = "vuln-mcp-app"
+version = "0.1.0"
+description = "Intentionally vulnerable MCP security testing lab (local target)."
+requires-python = ">=3.12"
+# Runtime + test dependencies. `uv run ...` resolves these automatically, so
+# `uv run uvicorn backend.app.main:app --host 127.0.0.1 --port 8000` works from a
+# fresh checkout with no manual venv step.
+dependencies = [
+    "fastapi>=0.111,<1.0",
+    "uvicorn[standard]>=0.30,<1.0",
+    "pydantic>=2.7,<3.0",
+    "pydantic-settings>=2.3,<3.0",
+    "sqlmodel>=0.0.19",
+    "SQLAlchemy>=2.0,<3.0",
+    "httpx>=0.27,<1.0",
+    "mcp>=1.2.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.2,<9.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+# Hatchling would try to auto-discover a package; this project is run as modules
+# (backend.app.main, mcp_servers.*), not installed, so disable build packaging.
+[tool.uv]
+package = false

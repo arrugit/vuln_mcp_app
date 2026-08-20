@@ -28,11 +28,13 @@ phases must not modify already-finished code.
 - **PHASE 0 — Foundation: COMPLETE** (committed + pushed to origin).
 - **MCP03 — Phase A (`phase/mcp03-foundation`): COMPLETE**.
 - **MCP03 — Phase B (`phase/mcp03-vulnerability`): COMPLETE**.
-- **MCP03 — Phase C (`phase/mcp03-ui-tests`): COMPLETE** — full MCP03 tab
-  (LEARN/CONFIGURE/exploit/evidence/telemetry/verify/remediation/enabling-code/
-  reset), integration tests, and the **run-model shift** (FastAPI serves the
-  built SPA at `/`, so `uvicorn … :8000` shows the whole app — no Docker needed).
-- Active vulnerability: **MCP03** (Phase D — finalization/docs — is next).
+- **MCP03 — Phase C (`phase/mcp03-ui-tests`): COMPLETE** — full MCP03 tab +
+  integration tests + run-model shift (FastAPI serves the SPA at `/`).
+- **MCP03 — Phase D (`phase/mcp03-finalization`): COMPLETE** — ground-truth /
+  OWASP-mapping / test-scenarios docs, README + PRD/TDD updated to the
+  Docker-free run model, Docker files removed, final verification (13-point).
+- **MCP03 STATUS: COMPLETE and LOCKED.** Do not modify MCP03 code in later work.
+- Active vulnerability: **none** (MCP05 is next — awaiting owner approval).
 
 ## Run model (Docker removed — see Phase D docs)
 
@@ -52,17 +54,36 @@ FastAPI serves `frontend/dist` at `/` when present (SPA), and the API under
 | `main` | integration | created (empty of code until foundation merges) |
 | `phase/foundation` | Phase 0 foundation | **complete, committed, pushed** |
 | `phase/mcp03-foundation` | MCP03 Phase A | **complete, committed** |
-| `phase/mcp03-vulnerability` | MCP03 Phase B | next (awaiting approval) |
+| `phase/mcp03-vulnerability` | MCP03 Phase B | **complete, committed** |
+| `phase/mcp03-ui-tests` | MCP03 Phase C | **complete, committed** |
+| `phase/mcp03-finalization` | MCP03 Phase D | **complete, committed** |
 | `phase/mcp03-ui-tests` | MCP03 Phase C | pending |
 | `phase/mcp03-finalization` | MCP03 Phase D | pending |
 | (mcp05-*, mcp10-* branches) | later | pending |
 
 ## Vulnerability status
 
-- **MCP03:** Phase A COMPLETE (clean/trusted `docs.fetch` end-to-end; no poison).
-  Phase B (poisoning + secure control) not started.
-- **MCP05:** NOT STARTED (scaffold catalog row only).
+- **MCP03:** ✅ COMPLETE & LOCKED (all four phases). Vulnerable + secure modes,
+  deterministic leak, evidence + telemetry, reset, full UI, docs, tests.
+- **MCP05:** NOT STARTED (scaffold catalog row only). Sandbox will be a
+  constrained in-process subprocess runner (Docker removed, D-08).
 - **MCP10:** NOT STARTED (scaffold catalog row only).
+
+## MCP03 — final verification (13-point checklist, Phase D)
+
+1. vulnerable mode works — ✅ `leaked_secret=DEMO_SECRET_A`, evidence `metadata_poison`.
+2. secure mode prevents it — ✅ no leak, evidence `tool_fetch`.
+3. exploit deterministic — ✅ server-side branch; repeatable-after-reset test.
+4. reset works — ✅ restores vulnerable baseline + clears evidence.
+5. evidence persisted — ✅ `evidence` table + `GET /api/evidence`.
+6. telemetry recorded — ✅ tools/list + tools/call + `security_event=secret_leak`.
+7. UI demonstrates it — ✅ MCP03 tab: LEARN/CONFIGURE/exploit/evidence/telemetry/verify.
+8. exploit procedure documented — ✅ GROUND-TRUTH + labs write-up.
+9. enabling code documented — ✅ file + line region (poisoned desc + secret sink).
+10. observable proof documented — ✅ `leaked_secret` in result.
+11. no oracle introduced — ✅ anti-oracle tests pass.
+12. infra not gratuitously vulnerable — ✅ control plane validated, no leak paths.
+13. 500+ meaningful lines/branch — ✅ A 751 / B 563 / C 510 / D (docs) satisfied.
 
 ## MCP03 — Phase A implementation (clean, no vulnerability)
 
@@ -118,18 +139,22 @@ Ordinarily-secure infrastructure only; **no vulnerability behaviour**.
   - `screens/` — `Dashboard`, `VulnerabilityModule` (scaffold; exploit runner
     added per lab in Phase C).
   - `lib/api.ts`, `lib/types.ts`.
-- **Sandbox** — `sandbox/README.md` (runner contract), `sandbox/runner.py`
-  (idle placeholder; guarded runner added in MCP05).
-- **Docker** — `docker-compose.yml`, `docker/*.Dockerfile` (frontend, backend,
-  mcp-server, sandbox). `sandbox-net` is `internal: true`.
-- **Tests** — `tests/` (pytest): health, labs, reset, telemetry, evidence,
-  registry, anti-oracle. `frontend/src/**.test.tsx` (Vitest): SeverityBadge.
-- **Docs/config** — `README.md`, `.env.example`, `.gitignore` (ignores
-  `docs/PRD.md`, `docs/TDD.md`), `pytest.ini`, `CLAUDE.md`.
+- **Sandbox** — `sandbox/README.md` (in-process runner contract, D-08),
+  `sandbox/runner.py` (idle placeholder; guarded runner added in MCP05).
+- **Run/serve** — `backend/app/main.py` mounts `frontend/dist` at `/`;
+  `pyproject.toml` drives `uv run`. Docker removed (D-08).
+- **Tests** — `tests/` (pytest): foundation + MCP03 (foundation/security/
+  integration). `frontend/src/**.test.tsx` (Vitest).
+- **Docs/config** — `README.md`, `docs/GROUND-TRUTH.md`,
+  `docs/OWASP-MCP-MAPPING.md`, `docs/TEST-SCENARIOS.md`, `.env.example`,
+  `.gitignore` (ignores `docs/PRD.md`, `docs/TDD.md`), `pyproject.toml`,
+  `pytest.ini`, `CLAUDE.md`.
 
 ## Architectural decisions in effect
 
-- Stack per TDD D-02: React/TS + FastAPI + Python MCP SDK + SQLite + Docker.
+- Stack per TDD D-02: React/TS + FastAPI + Python MCP SDK + SQLite. **Docker
+  removed (D-08):** single `uvicorn` process serves SPA + API; MCP server
+  in-process; MCP05 sandbox = constrained subprocess runner.
 - **D-03 transport:** streamable HTTP is the production target; Phase 0 uses an
   in-process registry transport so the control plane is testable without a
   running container. The client API (`list_tools`/`call_tool`) is
@@ -145,8 +170,8 @@ Ordinarily-secure infrastructure only; **no vulnerability behaviour**.
 
 - Control plane: validated inputs, CORS to local frontend, localhost bind.
 - MCP plane: only always-safe legit tools registered in P0.
-- Sandbox: isolated container, `internal` network, non-root, read-only, tmpfs
-  `/work`, `cap_drop: ALL` — no execution surface yet.
+- Sandbox (MCP05, when built): constrained in-process subprocess runner —
+  ephemeral temp `/work`, fake `convert` shim, timeout, no shell in secure mode.
 - No endpoint reveals vulnerability status.
 
 ## Tests (Phase 0)
@@ -159,29 +184,31 @@ Ordinarily-secure infrastructure only; **no vulnerability behaviour**.
 ## Commands
 
 ```bash
+# Build UI once, then run the whole app on one port (open http://127.0.0.1:8000)
+cd frontend && npm install && npm run build && cd ..
+uv run uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 # Backend tests
-.venv/Scripts/python -m pytest
-# Run backend (dev)
-uvicorn backend.app.main:app --reload
-# Full stack
-cp .env.example .env && docker compose up --build
+uv run pytest              # or: .venv/Scripts/python -m pytest
 # Frontend tests
-cd frontend && npm install && npm test
+cd frontend && npm test && npx tsc --noEmit
 ```
 
 ## Known issues / notes
 
-- Frontend deps not installed in this environment yet (`npm install` needed to
-  run Vitest / dev server). Docker images not built here (compose config
-  validated only).
-- MCP SDK (`mcp`) is listed in `backend/requirements.txt` but not used until the
-  streamable-HTTP transport is wired in a later phase.
+- `frontend/dist` is git-ignored: after cloning, run `npm run build` once before
+  `uvicorn` will serve the UI at `/` (backend-only dev still works; `/` returns a
+  JSON hint).
+- MCP SDK (`mcp`) is a dependency but the in-process registry transport is used
+  until the streamable-HTTP transport is wired (future).
+- MCP05 (when built) will use a constrained subprocess sandbox instead of Docker
+  (D-08) — softer OS isolation, mitigated by executing only a fake shim in a
+  throwaway dir. Documented in `sandbox/README.md`.
 
 ## Next recommended phase
 
-**MCP03 — Phase B (`phase/mcp03-vulnerability`)**: implement the intentionally
-poisoned `docs.fetch` (vulnerable tree) + keep the genuinely-secure counterpart,
-exact deterministic trigger, evidence/telemetry/reset, and security +
-secure-mode + determinism tests. Both modes manually verified.
+**MCP05 — Phase A (`phase/mcp05-foundation`)**: lab structure for
+`report.export`, the constrained subprocess sandbox runner contract, fixtures,
+API/registry wiring, evidence/telemetry/reset integration, test + frontend
+scaffolding. Do NOT implement the injection in Phase A (that is Phase B).
 
-**STATUS: MCP03 Phase A complete — WAITING FOR OWNER APPROVAL before Phase B.**
+**STATUS: MCP03 COMPLETE & LOCKED — WAITING FOR OWNER APPROVAL before MCP05.**
