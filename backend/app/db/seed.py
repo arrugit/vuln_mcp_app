@@ -98,7 +98,7 @@ LAB_CATALOG = [
 SERVER_NAME = "local-mcp-server"
 
 # Labs whose vulnerability is implemented (drives catalog status).
-IMPLEMENTED_LABS = {"mcp03-tool-poisoning"}
+IMPLEMENTED_LABS = {"mcp03-tool-poisoning", "mcp05-command-injection"}
 
 # Baseline (reset) mode per lab. An implemented lab defaults to the VULNERABLE
 # target state (TDD §18) so the FYP evaluates a vulnerable target by default;
@@ -106,7 +106,7 @@ IMPLEMENTED_LABS = {"mcp03-tool-poisoning"}
 # which is why the baseline is documented here as the single source of truth.
 BASELINE_MODES = {
     "mcp03-tool-poisoning": "vulnerable",
-    "mcp05-command-injection": "secure",
+    "mcp05-command-injection": "vulnerable",
     "mcp10-context-oversharing": "secure",
 }
 
@@ -190,6 +190,64 @@ def _seed_docs_fetch_tool(session: Session, *, server_id: int) -> None:
     session.commit()
 
 
+def _seed_report_export_tool(session: Session, *, server_id: int) -> None:
+    """Seed the MCP05 ``report.export`` tool with BOTH stored versions (FR-013).
+
+    ``trusted`` = the secure (validate + argv) definition; ``poisoned`` = the
+    unsafe (shell concatenation) definition. ``is_active`` tracks the lab's
+    baseline mode (``BASELINE_MODES``): vulnerable baseline -> unsafe active.
+    """
+    from mcp_servers.secure.tools.report_export import CLEAN_REPORT_EXPORT_DEFINITION
+    from mcp_servers.vulnerable.tools.report_export import UNSAFE_REPORT_EXPORT_DEFINITION
+
+    existing = session.exec(
+        select(MCPTool).where(MCPTool.name == "report.export")
+    ).first()
+    if existing is not None:
+        return
+
+    baseline_mode = BASELINE_MODES.get("mcp05-command-injection", "secure")
+    unsafe_active = baseline_mode == "vulnerable"
+    active_def = (
+        UNSAFE_REPORT_EXPORT_DEFINITION if unsafe_active else CLEAN_REPORT_EXPORT_DEFINITION
+    )
+
+    tool = MCPTool(
+        server_id=server_id,
+        name="report.export",
+        description=active_def["description"],
+        input_schema=json.dumps(active_def["inputSchema"], sort_keys=True),
+        output_schema=json.dumps(active_def["outputSchema"], sort_keys=True),
+        risk="low",
+    )
+    session.add(tool)
+    session.commit()
+    session.refresh(tool)
+
+    trusted = ToolVersion(
+        tool_id=tool.id,
+        version=1,
+        definition=json.dumps(CLEAN_REPORT_EXPORT_DEFINITION, sort_keys=True),
+        trust_status="trusted",
+        is_active=not unsafe_active,
+    )
+    poisoned = ToolVersion(
+        tool_id=tool.id,
+        version=2,
+        definition=json.dumps(UNSAFE_REPORT_EXPORT_DEFINITION, sort_keys=True),
+        trust_status="poisoned",
+        is_active=unsafe_active,
+    )
+    session.add(trusted)
+    session.add(poisoned)
+    session.commit()
+    session.refresh(trusted)
+    session.refresh(poisoned)
+    tool.current_version_id = poisoned.id if unsafe_active else trusted.id
+    session.add(tool)
+    session.commit()
+
+
 def seed_baseline(session: Session) -> None:
     """Populate the baseline catalog if it is not already present.
 
@@ -242,8 +300,11 @@ def seed_baseline(session: Session) -> None:
         session.add(tool)
         session.commit()
 
-    # --- MCP03 lab tool: docs.fetch (trusted version only in Phase A) ----
+    # --- MCP03 lab tool: docs.fetch (trusted + poisoned versions) --------
     _seed_docs_fetch_tool(session, server_id=server.id)
+
+    # --- MCP05 lab tool: report.export (trusted version only in Phase A) -
+    _seed_report_export_tool(session, server_id=server.id)
 
     # --- Lab catalog + descriptive vulnerability rows --------------------
     for spec in LAB_CATALOG:

@@ -25,4 +25,9 @@ def build_vulnerable_registry():
 
     registry = build_baseline_registry()
     register_poisoned_docs_fetch(registry)  # MCP03: poisoned docs.fetch
+
+    # MCP05 (Phase B): register the UNSAFE report.export (shell concatenation).
+    from .tools.report_export import register_unsafe_report_export
+
+    register_unsafe_report_export(registry)
     return registry

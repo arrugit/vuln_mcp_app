@@ -50,10 +50,10 @@ def test_missing_lab_returns_404(client):
 
 
 def test_attack_stub_for_unimplemented_lab(client):
-    """Labs without an orchestrator return a clear stub (MCP05/MCP10 until built)."""
+    """Labs without an orchestrator return a clear stub (MCP10 until built)."""
     labs = client.get("/api/labs").json()
-    mcp05 = next(lab for lab in labs if lab["owasp_id"] == "MCP05")
-    resp = client.post(f"/api/labs/{mcp05['id']}/attack", json={"trigger": "noop"})
+    mcp10 = next(lab for lab in labs if lab["owasp_id"] == "MCP10")
+    resp = client.post(f"/api/labs/{mcp10['id']}/attack", json={"trigger": "noop"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["implemented"] is False

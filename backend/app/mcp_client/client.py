@@ -19,9 +19,14 @@ only the always-safe legit tools, so no mode is exploitable yet.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from ..services.telemetry_service import TelemetryService
+if TYPE_CHECKING:
+    # Type-only import. Importing the services package at runtime here would form
+    # a cycle (services -> mcp_service -> mcp_client). With `from __future__ import
+    # annotations`, the annotation below is a string, so no runtime import is
+    # needed — the caller passes a TelemetryService instance we just duck-type.
+    from ..services.telemetry_service import TelemetryService
 
 # Import the two server builders. They live in the physically separate
 # vulnerable/ and secure/ trees (D-04); Phase 0 both return baseline-safe tools.
