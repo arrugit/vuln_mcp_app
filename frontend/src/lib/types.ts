@@ -51,3 +51,24 @@ export interface TelemetryEventView {
   mode: string | null;
   security_event: string | null;
 }
+
+export interface MCPToolSummary {
+  id: number;
+  server_id: number;
+  name: string;
+  description: string;
+  input_schema: unknown;
+  risk: string;
+}
+
+export interface ToolVersionView {
+  version: number;
+  trust_status: string; // "trusted" | "poisoned"
+  is_active: boolean;
+  definition: { name: string; description: string; [k: string]: unknown };
+}
+
+export interface MCPToolDetail extends MCPToolSummary {
+  output_schema: unknown;
+  versions: ToolVersionView[];
+}
