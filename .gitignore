@@ -1,0 +1,45 @@
+# ---------------------------------------------------------------------------
+# vuln_mcp_app .gitignore
+# ---------------------------------------------------------------------------
+# Design documents supplied during development. They MUST remain available
+# locally for development but MUST NOT be committed to GitHub (owner rule §6).
+# They are untracked; this rule keeps them that way.
+docs/PRD.md
+docs/TDD.md
+
+# Environment / secrets (only synthetic secrets exist, but never commit .env)
+.env
+.env.local
+*.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Databases / runtime data (re-seeded on reset; never source-of-truth)
+backend/data/
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/node_modules/
+*.log
+npm-debug.log*
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

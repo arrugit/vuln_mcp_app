@@ -1,0 +1,8 @@
+# Normalise line endings to LF in the repo (the project runs in Linux
+# containers). Prevents CRLF churn on the Windows host while keeping working-copy
+# checkouts native.
+* text=auto eol=lf
+
+# Keep shell/entrypoint scripts LF regardless of platform.
+*.sh text eol=lf
+*.py text eol=lf

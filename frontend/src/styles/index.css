@@ -1,0 +1,36 @@
+@import url("https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dark-first base (UX-001). The lab should feel like an "MCP Security Testing
+   Laboratory" (UX-006), not a commercial SaaS. */
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-surface-base text-slate-200 font-sans antialiased;
+  margin: 0;
+}
+
+.mono {
+  @apply font-mono;
+}
+
+/* Purple-gradient primary action (UX-005). */
+.btn-primary {
+  @apply bg-purple-gradient text-white font-semibold px-4 py-2 rounded-lg shadow;
+}
+
+.btn-ghost {
+  @apply border border-surface-border text-slate-300 px-4 py-2 rounded-lg;
+}
+
+.btn-danger {
+  @apply bg-severity-critical text-white font-semibold px-4 py-2 rounded-lg;
+}
+
+.card {
+  @apply bg-surface-raised border border-surface-border rounded-xl p-5;
+}
