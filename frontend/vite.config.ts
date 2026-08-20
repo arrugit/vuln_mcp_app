@@ -1,4 +1,8 @@
-import { defineConfig } from "vite";
+// Import defineConfig from vitest/config (not "vite") so the `test` block below
+// is type-checked correctly. vitest/config re-exports Vite's defineConfig with
+// the Vitest `test` field merged in — without this, `tsc -b` (run by
+// `npm run build`) rejects `test` as an unknown property.
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 // Vite config for the control-plane UI.
