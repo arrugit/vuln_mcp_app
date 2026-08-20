@@ -15,14 +15,34 @@ from typing import Any, Dict, Optional
 from sqlmodel import Session, select
 
 from ..mcp_client import MCPClient
-from ..models import MCPServer, MCPTool, ToolVersion
+from ..models import Lab, MCPServer, MCPTool, ToolVersion
 from .telemetry_service import TelemetryService
+
+# Maps a lab tool to the lab that owns it, so a DIRECT tool call reflects that
+# lab's current mode (vulnerable/secure) — the same behaviour the FYP would see
+# calling the tool over MCP. Tools not listed here are always-safe legit tools.
+TOOL_TO_LAB_SLUG = {
+    "docs.fetch": "mcp03-tool-poisoning",
+    "report.export": "mcp05-command-injection",
+}
 
 
 class MCPService:
     def __init__(self, session: Session) -> None:
         self._session = session
         self._telemetry = TelemetryService(session)
+
+    def resolve_mode_for_tool(self, tool: MCPTool) -> str:
+        """Return the behaviour mode a direct call to ``tool`` should run under.
+
+        Lab tools inherit their owning lab's current mode; non-lab (legit) tools
+        default to ``secure`` (they are benign in any mode anyway).
+        """
+        slug = TOOL_TO_LAB_SLUG.get(tool.name)
+        if slug is None:
+            return "secure"
+        lab = self._session.exec(select(Lab).where(Lab.slug == slug)).first()
+        return lab.mode if lab is not None else "secure"
 
     # --- catalog reads ---------------------------------------------------
     def list_servers(self) -> list[MCPServer]:

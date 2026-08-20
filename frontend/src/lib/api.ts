@@ -7,6 +7,8 @@ import type {
   Health,
   LabDetail,
   LabSummary,
+  MCPToolDetail,
+  MCPToolSummary,
   Mode,
   TelemetryEventView,
 } from "./types";
@@ -52,4 +54,6 @@ export const api = {
         ? `/labs/${labId}/telemetry`
         : `/labs/${labId}/telemetry?lab_run_id=${labRunId}`,
     ),
+  listTools: () => getJSON<MCPToolSummary[]>("/mcp/tools"),
+  getTool: (id: number) => getJSON<MCPToolDetail>(`/mcp/tools/${id}`),
 };

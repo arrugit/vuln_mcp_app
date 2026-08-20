@@ -80,10 +80,11 @@ def call_tool(
     tool = service.get_tool(tool_id)
     if tool is None:
         raise HTTPException(status_code=404, detail="tool not found")
-    # Mode is taken from the owning lab if the tool maps to one; Phase 0 legit
-    # tools are benign in every mode, so default to secure for a safe baseline.
+    # A direct tool call runs under the owning lab's current mode (lab tools) or
+    # secure (legit tools) — so this endpoint behaves like the real MCP surface.
+    mode = service.resolve_mode_for_tool(tool)
     try:
-        result = service.call_tool_by_id(tool_id, body.args, mode="secure")
+        result = service.call_tool_by_id(tool_id, body.args, mode=mode)
     except KeyError:
         raise HTTPException(status_code=404, detail="tool not found")
-    return result
+    return {**result, "mode": mode}
