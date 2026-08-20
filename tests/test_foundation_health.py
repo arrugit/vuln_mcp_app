@@ -17,7 +17,16 @@ def test_health_has_no_vulnerability_verdict(client):
     assert forbidden.isdisjoint(body.keys())
 
 
-def test_root_describes_target_role(client):
-    body = client.get("/").json()
-    assert body["app"] == "vuln_mcp_app"
-    assert "not a scanner" in body["role"]
+def test_root_serves_ui_or_identifies_target(client):
+    """GET / serves the built SPA when present, else a JSON hint that identifies
+    this as the target (not a scanner). Robust to whether the frontend is built."""
+    resp = client.get("/")
+    assert resp.status_code == 200
+    ctype = resp.headers.get("content-type", "")
+    if "application/json" in ctype:
+        body = resp.json()
+        assert body["app"] == "vuln_mcp_app"
+        assert "not a scanner" in body["role"]
+    else:
+        # SPA build is mounted at "/"
+        assert "text/html" in ctype

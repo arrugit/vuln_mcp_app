@@ -27,10 +27,23 @@ phases must not modify already-finished code.
 
 - **PHASE 0 — Foundation: COMPLETE** (committed + pushed to origin).
 - **MCP03 — Phase A (`phase/mcp03-foundation`): COMPLETE**.
-- **MCP03 — Phase B (`phase/mcp03-vulnerability`): COMPLETE** — poisoned
-  `docs.fetch` + genuinely-secure counterpart; deterministic leak; baseline mode
-  = vulnerable; reset restores baseline; security/secure/determinism tests.
-- Active vulnerability: **MCP03** (Phase C — UI/integration — is next).
+- **MCP03 — Phase B (`phase/mcp03-vulnerability`): COMPLETE**.
+- **MCP03 — Phase C (`phase/mcp03-ui-tests`): COMPLETE** — full MCP03 tab
+  (LEARN/CONFIGURE/exploit/evidence/telemetry/verify/remediation/enabling-code/
+  reset), integration tests, and the **run-model shift** (FastAPI serves the
+  built SPA at `/`, so `uvicorn … :8000` shows the whole app — no Docker needed).
+- Active vulnerability: **MCP03** (Phase D — finalization/docs — is next).
+
+## Run model (Docker removed — see Phase D docs)
+
+Build the UI once, then run one command and open the browser:
+```
+cd frontend && npm install && npm run build
+uv run uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+# open http://127.0.0.1:8000
+```
+FastAPI serves `frontend/dist` at `/` when present (SPA), and the API under
+`/api`. Backend-only dev (no build) still works; `/` then returns a JSON hint.
 
 ## Branch structure & status
 
