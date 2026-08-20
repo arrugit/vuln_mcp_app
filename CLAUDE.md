@@ -36,11 +36,29 @@ phases must not modify already-finished code.
 - **MCP03 STATUS: COMPLETE and LOCKED.** Do not modify MCP03 code in later work.
 - **MCP05 — Phase A (`phase/mcp05-foundation`): COMPLETE**.
 - **MCP05 — Phase B (`phase/mcp05-vulnerability`): COMPLETE**.
-- **MCP05 — Phase C (`phase/mcp05-ui-tests`): COMPLETE** — MCP05 tab content
-  (LAB_CONTENT), generic ExploitRunner verdict (secret-leak OR marker), integration
-  tests, and the direct `/api/mcp/tools/{id}/call` endpoint now runs under the
-  owning lab's mode (was hardcoded secure).
-- Active vulnerability: **MCP05** (Phase D — finalization/docs — is next).
+- **MCP05 — Phase C (`phase/mcp05-ui-tests`): COMPLETE** — MCP05 tab + tool-def
+  diff viewer (S6/FR-013) + integration tests + mode-aware direct tool call.
+- **MCP05 — Phase D (`phase/mcp05-finalization`): COMPLETE** — GROUND-TRUTH /
+  OWASP-mapping / test-scenarios filled for MCP05, README updated, final
+  verification (13-point).
+- **MCP05 STATUS: COMPLETE and LOCKED.** Do not modify MCP03/MCP05 code later.
+- Active vulnerability: **none** (MCP10 is next — awaiting owner approval).
+
+## MCP05 — final verification (13-point checklist, Phase D)
+
+1. vulnerable mode works — ✅ `marker_present=True`, evidence `command_injection`.
+2. secure mode prevents it — ✅ filename rejected + argv exec, no marker.
+3. exploit deterministic — ✅ POSIX-shell `;` split; repeatable-after-reset test.
+4. reset works — ✅ restores vulnerable baseline + clears evidence.
+5. evidence persisted — ✅ `evidence` table + `GET /api/evidence`.
+6. telemetry recorded — ✅ tools/list + tools/call + `security_event=command_injection`.
+7. UI demonstrates it — ✅ MCP05 tab: LEARN/CONFIGURE/exploit/evidence/telemetry/verify/diff.
+8. exploit procedure documented — ✅ GROUND-TRUTH + labs write-up.
+9. enabling code documented — ✅ `report_export.py` sink + `run_shell`.
+10. observable proof documented — ✅ `/work/marker` + injected constructed command.
+11. no oracle introduced — ✅ anti-oracle tests pass.
+12. infra not gratuitously vulnerable — ✅ sandbox contained (temp dir, timeout, no net).
+13. 500+ meaningful lines/branch — ✅ A 642 / B 528 / C 516 / D (docs) satisfied.
 
 ## Run model (Docker removed — see Phase D docs)
 
@@ -65,14 +83,20 @@ FastAPI serves `frontend/dist` at `/` when present (SPA), and the API under
 | `phase/mcp03-finalization` | MCP03 Phase D | **complete, committed** |
 | `phase/mcp03-ui-tests` | MCP03 Phase C | pending |
 | `phase/mcp03-finalization` | MCP03 Phase D | pending |
-| (mcp05-*, mcp10-* branches) | later | pending |
+| `phase/mcp05-foundation` | MCP05 Phase A | **complete, committed** |
+| `phase/mcp05-vulnerability` | MCP05 Phase B | **complete, committed** |
+| `phase/mcp05-ui-tests` | MCP05 Phase C | **complete, committed** |
+| `phase/mcp05-finalization` | MCP05 Phase D | **complete, committed** |
+| (mcp10-* branches) | later | pending |
 
 ## Vulnerability status
 
 - **MCP03:** ✅ COMPLETE & LOCKED (all four phases). Vulnerable + secure modes,
   deterministic leak, evidence + telemetry, reset, full UI, docs, tests.
-- **MCP05:** NOT STARTED (scaffold catalog row only). Sandbox will be a
-  constrained in-process subprocess runner (Docker removed, D-08).
+- **MCP05:** ✅ COMPLETE & LOCKED (all four phases). Unsafe `report.export` shell
+  concatenation + secure validate/argv counterpart; deterministic `/work/marker`;
+  constrained in-process subprocess sandbox (D-08); evidence + telemetry; reset;
+  full UI incl. tool-def diff; docs; tests.
 - **MCP10:** NOT STARTED (scaffold catalog row only).
 
 ## MCP03 — final verification (13-point checklist, Phase D)
@@ -212,9 +236,10 @@ cd frontend && npm test && npx tsc --noEmit
 
 ## Next recommended phase
 
-**MCP05 — Phase A (`phase/mcp05-foundation`)**: lab structure for
-`report.export`, the constrained subprocess sandbox runner contract, fixtures,
+**MCP10 — Phase A (`phase/mcp10-foundation`)**: lab structure for `memory.recall`,
+synthetic sessions/contexts fixtures (Session A holds `DEMO_SECRET_A`),
 API/registry wiring, evidence/telemetry/reset integration, test + frontend
-scaffolding. Do NOT implement the injection in Phase A (that is Phase B).
+scaffolding. Do NOT implement the missing-ownership leak in Phase A (that is
+Phase B). Secure design enforces session-scoped access.
 
-**STATUS: MCP03 COMPLETE & LOCKED — WAITING FOR OWNER APPROVAL before MCP05.**
+**STATUS: MCP03 + MCP05 COMPLETE & LOCKED — WAITING FOR OWNER APPROVAL before MCP10.**

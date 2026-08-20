@@ -15,7 +15,7 @@ MCP05 and MCP10 entries are placeholders until those labs are built.
 | ID | OWASP | Vulnerability | Component | Trigger | Expected evidence | Expected detection |
 |----|-------|---------------|-----------|---------|-------------------|--------------------|
 | VULN-MCP03-001 | MCP03 | Tool Poisoning | `docs.fetch` metadata + handler | `docs.fetch {"doc_id":"welcome"}` | poisoned description string + `leaked_secret=DEMO_SECRET_A`; evidence `metadata_poison`; telemetry `security_event=secret_leak` | Static: instruction in tool metadata. Behavioural: secret in tool result |
-| VULN-MCP05-001 | MCP05 | Command Injection & Execution | `report.export` command construction | `report.export {"filename":"a.txt; echo PWNED > /work/marker"}` | constructed command + `/work/marker` | *(pending — lab not built)* |
+| VULN-MCP05-001 | MCP05 | Command Injection & Execution | `report.export` command construction | `report.export {"filename":"a.txt; echo PWNED > /work/marker"}` | constructed command with injected `; echo PWNED` + `/work/marker` created; evidence `command_injection`; telemetry `security_event=command_injection` | Dataflow: untrusted arg → shell string → exec sink |
 | VULN-MCP10-001 | MCP10 | Context Injection & Over-Sharing | `memory.recall` access scoping | `memory.recall {"session_token":"<B>","query":"…"}` | foreign session record incl. `DEMO_SECRET_A` | *(pending — lab not built)* |
 
 ---
@@ -120,12 +120,105 @@ mode (`vulnerable`), and flips the active `docs.fetch` version to `poisoned`.
 
 ---
 
-## VULN-MCP05-001 — Command Injection & Execution (PENDING)
+## VULN-MCP05-001 — Command Injection & Execution (IMPLEMENTED)
 
-Not implemented yet. Planned per TDD §16: untrusted `filename` →
-unsafe command construction → constrained local sandbox; payload
-`a.txt; echo PWNED > /work/marker` creates a marker. Enabling code (planned):
-`mcp_servers/vulnerable/tools/report_export.py`.
+| Field | Value |
+|---|---|
+| **Vulnerability ID** | `VULN-MCP05-001` |
+| **OWASP MCP category** | MCP05 — Command Injection & Execution |
+| **Name** | Command injection via `report.export` |
+| **Vulnerable component** | `mcp_servers/vulnerable/tools/report_export.py` |
+| **Vulnerable tool** | `report.export` (MCP `tools/call`) |
+| **Attack surface** | Untrusted input → command construction → sandboxed exec |
+| **Severity** | Critical |
+| **Baseline mode** | `vulnerable` (reset restores this) |
+| **Preconditions** | MCP05 lab in `vulnerable` mode (default). No auth. |
+
+### Trigger / exact exploit input (FR-051a / GT-005)
+
+In the MCP05 tab, run the pre-filled call (Exploit/Run → `POST /api/labs/{id}/attack`):
+
+```
+report.export {"filename": "a.txt; echo PWNED > /work/marker"}
+```
+
+### Enabling code location (FR-051b)
+
+`mcp_servers/vulnerable/tools/report_export.py`, in `unsafe_report_export()`:
+
+```python
+cmd = "convert " + filename + " out.pdf"   # unsafe concatenation (the sink)
+result = sandbox.run_shell(cmd)             # executed through a POSIX shell
+```
+
+The unsafe primitive is `SandboxRunner.run_shell` (`sandbox/runner.py`). Banner in
+the tool file: `# INTENTIONALLY VULNERABLE — VULN-MCP05-001 — see docs/GROUND-TRUTH.md`.
+
+### Vulnerable behaviour
+
+A shell parses the concatenated string, so the `;` in the filename splits it into
+two commands: the fake `convert a.txt` and the injected `echo PWNED > /work/marker`.
+The injected command runs and writes the marker file.
+
+### Expected security impact
+
+Arbitrary command execution in the tool's context. Contained here to the
+ephemeral sandbox (no host access, no network, hard timeout).
+
+### Expected evidence (EV-001..003)
+
+- Evidence `kind=command_injection`, `observable="extra command executed (marker
+  created in /work)"`, `raw_signal={filename, constructed_command (with the
+  injected separator), marker_present:true, stdout}`.
+- Telemetry event tagged `security_event=command_injection`.
+- Both stored `report.export` versions (`trusted`, `poisoned`/unsafe) are
+  diff-able via `GET /api/mcp/tools/{id}` (FR-013).
+
+### Observable proof (FR-051c)
+
+`marker_present = true` and the recorded `constructed_command` shows
+`convert a.txt; echo PWNED > /work/marker out.pdf`.
+
+### Expected scanner observation
+
+- **Dataflow:** an untrusted tool argument flowing into a shell command string
+  and an exec sink (`shell` execution).
+- **Behavioural:** a side-effect file created by an injected command.
+
+### Secure behaviour (SEC-007)
+
+In `secure` mode the server serves `mcp_servers/secure/tools/report_export.py`:
+(1) allow-list validation (`^[A-Za-z0-9._-]+$`) rejects the payload, and
+(2) execution uses `argv` with `shell=False`. No marker is created; evidence
+`kind=command_exec`.
+
+### Remediation
+
+- Never build shell strings from untrusted input; use `argv` + `shell=False`.
+- Validate/allow-list inputs; reject separators.
+- Least privilege + isolated, no-network sandbox; prefer library calls over shelling out.
+
+### Sandbox containment (SEC-003, D-08)
+
+Constrained in-process subprocess runner: ephemeral temp `/work`, only a fake
+`convert` shell function, hard timeout, capped output. The marker lives in the
+throwaway dir and is deleted on run exit — nothing persists on the host. Trade-off
+vs. the removed container sandbox is documented in `sandbox/README.md`.
+
+### Manual verification procedure (GT-004)
+
+1. Confirm MCP05 is `vulnerable` (baseline).
+2. Run `report.export {"filename":"a.txt; echo PWNED > /work/marker"}`.
+3. Confirm `marker_present=true` and the constructed command shows `; echo PWNED`.
+4. Toggle **Secure**; re-run; confirm `rejected=true`, `marker_present=false`.
+5. **Reset**; confirm `vulnerable` baseline and identical evidence on re-run.
+
+Machine-checkable: `tests/test_mcp05_security.py`, `tests/test_mcp05_integration.py`.
+
+### Reset procedure (RST-001)
+
+`POST /api/labs/{id}/reset` clears runtime state, re-seeds, restores baseline
+mode (`vulnerable`), and flips the active `report.export` version to unsafe.
 
 ## VULN-MCP10-001 — Context Injection & Over-Sharing (PENDING)
 

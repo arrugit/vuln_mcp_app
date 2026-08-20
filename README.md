@@ -16,7 +16,7 @@ SEC-006).
 | ID | OWASP MCP | Vulnerability | Status |
 |----|-----------|---------------|--------|
 | VULN-MCP03-001 | MCP03 | Tool Poisoning | **implemented** |
-| VULN-MCP05-001 | MCP05 | Command Injection & Execution | pending |
+| VULN-MCP05-001 | MCP05 | Command Injection & Execution | **implemented** |
 | VULN-MCP10-001 | MCP10 | Context Injection & Over-Sharing | pending |
 
 No additional vulnerability labs are in scope. Each implemented lab ships a
@@ -135,5 +135,5 @@ only) · `GET /api/evidence`.
 
 ## Current state
 
-**MCP03 complete** (all phases). Runs Docker-free via `uvicorn`. MCP05 and MCP10
-are scaffolded in the catalog and not yet built. See `CLAUDE.md`.
+**MCP03 and MCP05 complete** (all phases). Runs Docker-free via `uvicorn`. MCP10
+is scaffolded in the catalog and not yet built. See `CLAUDE.md`.
