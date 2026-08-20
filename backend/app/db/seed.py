@@ -190,6 +190,48 @@ def _seed_docs_fetch_tool(session: Session, *, server_id: int) -> None:
     session.commit()
 
 
+def _seed_report_export_tool(session: Session, *, server_id: int) -> None:
+    """Seed the MCP05 ``report.export`` tool with its TRUSTED version (Phase A).
+
+    Phase A seeds only the ``trusted`` (secure) definition. Phase B adds the
+    ``poisoned`` (unsafe command-construction) version and the baseline flip,
+    mirroring how docs.fetch works for MCP03.
+    """
+    from mcp_servers.secure.tools.report_export import CLEAN_REPORT_EXPORT_DEFINITION
+
+    existing = session.exec(
+        select(MCPTool).where(MCPTool.name == "report.export")
+    ).first()
+    if existing is not None:
+        return
+
+    tool = MCPTool(
+        server_id=server_id,
+        name="report.export",
+        description=CLEAN_REPORT_EXPORT_DEFINITION["description"],
+        input_schema=json.dumps(CLEAN_REPORT_EXPORT_DEFINITION["inputSchema"], sort_keys=True),
+        output_schema=json.dumps(CLEAN_REPORT_EXPORT_DEFINITION["outputSchema"], sort_keys=True),
+        risk="low",
+    )
+    session.add(tool)
+    session.commit()
+    session.refresh(tool)
+
+    version = ToolVersion(
+        tool_id=tool.id,
+        version=1,
+        definition=json.dumps(CLEAN_REPORT_EXPORT_DEFINITION, sort_keys=True),
+        trust_status="trusted",
+        is_active=True,
+    )
+    session.add(version)
+    session.commit()
+    session.refresh(version)
+    tool.current_version_id = version.id
+    session.add(tool)
+    session.commit()
+
+
 def seed_baseline(session: Session) -> None:
     """Populate the baseline catalog if it is not already present.
 
@@ -242,8 +284,11 @@ def seed_baseline(session: Session) -> None:
         session.add(tool)
         session.commit()
 
-    # --- MCP03 lab tool: docs.fetch (trusted version only in Phase A) ----
+    # --- MCP03 lab tool: docs.fetch (trusted + poisoned versions) --------
     _seed_docs_fetch_tool(session, server_id=server.id)
+
+    # --- MCP05 lab tool: report.export (trusted version only in Phase A) -
+    _seed_report_export_tool(session, server_id=server.id)
 
     # --- Lab catalog + descriptive vulnerability rows --------------------
     for spec in LAB_CATALOG:

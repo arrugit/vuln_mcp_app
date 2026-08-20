@@ -18,7 +18,9 @@ def build_secure_registry():
     """
     from ..common import build_baseline_registry
     from .tools.docs_fetch import register_docs_fetch
+    from .tools.report_export import register_report_export
 
     registry = build_baseline_registry()
-    register_docs_fetch(registry)  # MCP03: trusted/clean docs.fetch
+    register_docs_fetch(registry)      # MCP03: trusted/clean docs.fetch
+    register_report_export(registry)   # MCP05: validated + argv report.export
     return registry

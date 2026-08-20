@@ -25,4 +25,11 @@ def build_vulnerable_registry():
 
     registry = build_baseline_registry()
     register_poisoned_docs_fetch(registry)  # MCP03: poisoned docs.fetch
+
+    # MCP05 Phase A: register the SECURE report.export in vulnerable mode too —
+    # the unsafe command-construction variant does NOT exist yet (it arrives in
+    # MCP05 Phase B, which will register the poisoned handler here instead).
+    from ..secure.tools.report_export import register_report_export
+
+    register_report_export(registry)
     return registry

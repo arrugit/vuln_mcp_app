@@ -34,7 +34,10 @@ phases must not modify already-finished code.
   OWASP-mapping / test-scenarios docs, README + PRD/TDD updated to the
   Docker-free run model, Docker files removed, final verification (13-point).
 - **MCP03 STATUS: COMPLETE and LOCKED.** Do not modify MCP03 code in later work.
-- Active vulnerability: **none** (MCP05 is next — awaiting owner approval).
+- **MCP05 — Phase A (`phase/mcp05-foundation`): COMPLETE** — constrained
+  subprocess sandbox runner (safe argv primitive only), `report.export` secure
+  tool wired end-to-end, fixtures, seed, orchestrator, tests. NO injection yet.
+- Active vulnerability: **MCP05** (Phase B — the injection — is next).
 
 ## Run model (Docker removed — see Phase D docs)
 

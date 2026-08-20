@@ -38,6 +38,11 @@ frontend/node_modules/
 *.log
 npm-debug.log*
 
+# TypeScript build artifacts (emitted by `tsc -b` for the composite node config)
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
 # OS / editor noise
 .DS_Store
 Thumbs.db
