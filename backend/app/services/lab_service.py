@@ -52,12 +52,13 @@ class LabService:
         self._session.add(lab)
         self._session.commit()
         self._session.refresh(lab)
-        # Keep the MCP03 tool viewer's active version in sync with the mode so
-        # the trusted-vs-poisoned diff reflects what is actually served (TDD §14).
-        if lab.slug == "mcp03-tool-poisoning":
-            from ..db.reset import sync_docs_fetch_active_version
+        # Keep the tool viewer's active version in sync with the mode so the
+        # trusted-vs-unsafe diff reflects what is actually served (TDD §14).
+        from ..db.reset import LAB_TOOL_BY_SLUG, sync_tool_active_version
 
-            sync_docs_fetch_active_version(self._session, mode)
+        tool_name = LAB_TOOL_BY_SLUG.get(lab.slug)
+        if tool_name is not None:
+            sync_tool_active_version(self._session, tool_name, mode)
         return lab
 
     # --- runs ------------------------------------------------------------

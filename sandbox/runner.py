@@ -197,6 +197,59 @@ class SandboxRunner:
             constructed_command=" ".join(argv),
         )
 
+    # -- UNSAFE primitive (MCP05 Phase B) --------------------------------
+    def run_shell(self, cmd: str) -> SandboxResult:
+        """Execute ``cmd`` THROUGH A POSIX SHELL — the unsafe path.
+
+        This is the primitive the VULNERABLE ``report.export`` uses. A shell
+        parses the string, so any shell metacharacter in the (untrusted) input
+        that was concatenated into ``cmd`` is interpreted — that is the command
+        injection. Containment is preserved by the sandbox controls: it runs in
+        the ephemeral work dir, only a fake ``convert`` (a shell function
+        prelude) is available, output is capped, and a hard timeout applies.
+
+        ``constructed_command`` records the RAW unsafe string (``/work``
+        untranslated) so the evidence shows the injected separator exactly.
+        """
+        wd = self._require_workdir()
+        shell = find_posix_shell()
+        if shell is None:  # pragma: no cover - environment-dependent
+            raise RuntimeError(
+                "no POSIX shell found for sandbox shell execution; set LAB_SHELL"
+            )
+        translated = self._translate(cmd)
+        # A fake 'convert' so the legitimate part of the command "works" without
+        # a real converter; the shell still interprets any injected metacharacters.
+        prelude = 'convert() { : > "${2:-out.pdf}"; echo "converted $1 -> ${2:-out.pdf}"; }; '
+        full = prelude + translated
+        timed_out = False
+        try:
+            proc = subprocess.run(
+                [shell, "-c", full],
+                cwd=wd,
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+                env=_minimal_env(),
+                shell=False,  # we invoke the shell explicitly with an argv
+            )
+            exit_code: Optional[int] = proc.returncode
+            stdout, stderr = proc.stdout, proc.stderr
+        except subprocess.TimeoutExpired as exc:
+            timed_out = True
+            exit_code = None
+            stdout = exc.stdout if isinstance(exc.stdout, str) else ""
+            stderr = (exc.stderr if isinstance(exc.stderr, str) else "") + "\n[sandbox] timed out"
+
+        return SandboxResult(
+            exit_code=exit_code,
+            stdout=_truncate(stdout),
+            stderr=_truncate(stderr),
+            marker_present=self.marker_present(),
+            timed_out=timed_out,
+            constructed_command=cmd,  # raw unsafe string (the sink), untranslated
+        )
+
 
 def main() -> None:  # pragma: no cover - manual smoke helper
     """Manual smoke test: run the fake convert on a benign filename."""

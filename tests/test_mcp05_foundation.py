@@ -75,19 +75,25 @@ def test_secure_report_export_runs_valid_file():
 
 
 # --- DB catalog -------------------------------------------------------------
-def test_report_export_seeded_with_trusted_version(client):
+def test_report_export_seeded_with_both_versions(client):
+    """FR-013: both stored versions exist; at the MCP05 baseline (vulnerable)
+    the unsafe (poisoned) version is active."""
     tools = client.get("/api/mcp/tools").json()
     tool = next((t for t in tools if t["name"] == "report.export"), None)
     assert tool is not None
     detail = client.get(f"/api/mcp/tools/{tool['id']}").json()
-    assert len(detail["versions"]) == 1
-    assert detail["versions"][0]["trust_status"] == "trusted"
+    statuses = {v["trust_status"] for v in detail["versions"]}
+    assert statuses == {"trusted", "poisoned"}
+    active = [v for v in detail["versions"] if v["is_active"]]
+    assert len(active) == 1 and active[0]["trust_status"] == "poisoned"
 
 
-# --- orchestrator end-to-end (safe; no marker) -----------------------------
-def test_mcp05_attack_runs_safe_and_records_evidence(session):
+# --- orchestrator end-to-end (secure path; no marker) ----------------------
+def test_mcp05_attack_secure_records_evidence_without_marker(session):
     lab = LabService(session).get_lab_by_slug("mcp05-command-injection")
-    # Even with the injection payload, Phase A (secure) produces no marker.
+    # Pin the secure behaviour explicitly (baseline is now vulnerable).
+    LabService(session).set_mode(lab.id, "secure")
+    lab = LabService(session).get_lab_by_slug("mcp05-command-injection")
     result = run_lab_attack(session, lab, {"filename": INJECTION_PAYLOAD})
     assert result["result"]["marker_present"] is False
 
@@ -95,4 +101,4 @@ def test_mcp05_attack_runs_safe_and_records_evidence(session):
 
     ev = EvidenceService(session).list_for_run(result["lab_run_id"])
     assert len(ev) == 1
-    assert ev[0].kind == "command_exec"  # not command_injection in Phase A
+    assert ev[0].kind == "command_exec"  # neutralised in secure mode
