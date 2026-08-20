@@ -25,26 +25,57 @@ phases must not modify already-finished code.
 
 ## Current implementation phase
 
-- **PHASE 0 — Foundation: COMPLETE (pending owner approval to proceed).**
-- Active vulnerability: **none yet** (MCP03 is next, awaiting approval).
+- **PHASE 0 — Foundation: COMPLETE** (committed + pushed to origin).
+- **MCP03 — Phase A (`phase/mcp03-foundation`): COMPLETE** (clean/trusted
+  `docs.fetch` wired end-to-end; NO poisoning yet — that is Phase B).
+- Active vulnerability: **MCP03** (Phase B is next, awaiting owner approval).
 
 ## Branch structure & status
 
 | Branch | Purpose | Status |
 |---|---|---|
 | `main` | integration | created (empty of code until foundation merges) |
-| `phase/foundation` | Phase 0 foundation | **complete, committed** |
-| `phase/mcp03-foundation` | MCP03 Phase A | pending |
-| `phase/mcp03-vulnerability` | MCP03 Phase B | pending |
+| `phase/foundation` | Phase 0 foundation | **complete, committed, pushed** |
+| `phase/mcp03-foundation` | MCP03 Phase A | **complete, committed** |
+| `phase/mcp03-vulnerability` | MCP03 Phase B | next (awaiting approval) |
 | `phase/mcp03-ui-tests` | MCP03 Phase C | pending |
 | `phase/mcp03-finalization` | MCP03 Phase D | pending |
 | (mcp05-*, mcp10-* branches) | later | pending |
 
 ## Vulnerability status
 
-- **MCP03:** NOT STARTED (scaffold catalog row only).
+- **MCP03:** Phase A COMPLETE (clean/trusted `docs.fetch` end-to-end; no poison).
+  Phase B (poisoning + secure control) not started.
 - **MCP05:** NOT STARTED (scaffold catalog row only).
 - **MCP10:** NOT STARTED (scaffold catalog row only).
+
+## MCP03 — Phase A implementation (clean, no vulnerability)
+
+- `labs/mcp03_tool_poisoning/fixtures.py` — synthetic docs corpus (incl.
+  `welcome`) + `DEMO_SECRET_A` (kept OUTSIDE the corpus; nothing reads it yet).
+- `mcp_servers/secure/tools/docs_fetch.py` — clean `docs.fetch` (factual
+  description, no secret branch) + `CLEAN_DOCS_FETCH_DEFINITION` (single source
+  of truth) + `register_docs_fetch()`.
+- `mcp_servers/{secure,vulnerable}/__init__.py` — both register the CLEAN
+  docs.fetch in Phase A (identical registries; poisoning arrives in Phase B and
+  only touches the vulnerable builder).
+- `backend/app/db/seed.py` — seeds `docs.fetch` DB catalog row + a single
+  `trusted` `tool_version` (`is_active=True`).
+- `backend/app/services/labs/{__init__.py,mcp03_service.py}` — slug dispatcher +
+  MCP03 orchestrator (runs `docs.fetch {"doc_id":"welcome"}`, records telemetry +
+  evidence; classifies `tool_fetch` vs future `metadata_poison` by secret
+  presence — no oracle).
+- `backend/app/api/routes_labs.py` — `/attack` now dispatches to the orchestrator.
+- Frontend: `components/ExploitRunner.tsx` + MCP03 wiring in
+  `screens/VulnerabilityModule.tsx` (pre-filled `doc_id="welcome"`,
+  enabling-code pointer).
+- `labs/mcp03_tool_poisoning/write-up.md` — D-07 write-up scaffold.
+
+**Phase B TODO (do NOT do in Phase A):** add
+`mcp_servers/vulnerable/tools/docs_fetch.py` (poisoned metadata + secret branch,
+with the `# INTENTIONALLY VULNERABLE — VULN-MCP03-001` banner); point
+`build_vulnerable_registry` at it; add the `poisoned` `tool_version` + mode-driven
+`is_active` flip; security/secure-mode/determinism tests.
 
 ## Foundation — implemented files (Phase 0)
 
@@ -133,9 +164,9 @@ cd frontend && npm install && npm test
 
 ## Next recommended phase
 
-**MCP03 — Phase A (`phase/mcp03-foundation`)**: lab/module structure, tool
-registration for `docs.fetch` (trusted version), fixtures, evidence/telemetry
-integration, reset integration, test scaffolding, frontend module scaffolding.
-**Do NOT implement the poisoning behaviour in Phase A** — that is Phase B.
+**MCP03 — Phase B (`phase/mcp03-vulnerability`)**: implement the intentionally
+poisoned `docs.fetch` (vulnerable tree) + keep the genuinely-secure counterpart,
+exact deterministic trigger, evidence/telemetry/reset, and security +
+secure-mode + determinism tests. Both modes manually verified.
 
-**STATUS: WAITING FOR OWNER APPROVAL before starting MCP03.**
+**STATUS: MCP03 Phase A complete — WAITING FOR OWNER APPROVAL before Phase B.**

@@ -49,12 +49,13 @@ def test_missing_lab_returns_404(client):
     assert client.get("/api/labs/9999").status_code == 404
 
 
-def test_attack_stub_creates_run_without_evidence(client):
-    """Phase 0: /attack creates a run but emits no evidence yet."""
+def test_attack_stub_for_unimplemented_lab(client):
+    """Labs without an orchestrator return a clear stub (MCP05/MCP10 until built)."""
     labs = client.get("/api/labs").json()
-    lab_id = labs[0]["id"]
-    resp = client.post(f"/api/labs/{lab_id}/attack", json={"trigger": "noop"})
+    mcp05 = next(lab for lab in labs if lab["owasp_id"] == "MCP05")
+    resp = client.post(f"/api/labs/{mcp05['id']}/attack", json={"trigger": "noop"})
     assert resp.status_code == 200
-    run_id = resp.json()["lab_run_id"]
-    evidence = client.get(f"/api/evidence?lab_run_id={run_id}").json()
-    assert evidence == []
+    body = resp.json()
+    assert body["implemented"] is False
+    # No run/evidence should have been created for a stubbed lab.
+    assert client.get("/api/evidence").json() == []

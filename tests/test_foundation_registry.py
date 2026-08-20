@@ -14,11 +14,14 @@ def test_baseline_registry_loads_legit_tools():
         assert "name" in definition and "inputSchema" in definition
 
 
-def test_both_modes_are_baseline_safe_in_phase0():
-    """Phase 0: vulnerable and secure registries are identical + benign."""
+def test_both_modes_expose_same_tool_names():
+    """Until a lab's Phase B introduces a poisoned tool, vulnerable and secure
+    registries expose the SAME tool names. MCP03 Phase A adds a clean docs.fetch
+    to both; the two registries stay identical (no poisoning yet)."""
     vuln = registry_for_mode("vulnerable")
     secure = registry_for_mode("secure")
-    assert vuln.names() == secure.names() == ["notes.search", "notes.summarize"]
+    assert vuln.names() == secure.names()
+    assert {"notes.search", "notes.summarize", "docs.fetch"} <= set(vuln.names())
 
 
 def test_unknown_tool_raises_keyerror():

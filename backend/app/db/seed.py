@@ -111,6 +111,54 @@ def _tool_definition_json(tool: dict) -> str:
     )
 
 
+def _seed_docs_fetch_tool(session: Session, *, server_id: int) -> None:
+    """Seed the MCP03 ``docs.fetch`` tool with its TRUSTED version (Phase A).
+
+    The DB catalog row + ``tool_versions`` back the tool viewer and the future
+    trusted-vs-poisoned diff (FR-013). Phase A seeds only the ``trusted`` version
+    (``is_active=True``). Phase B adds the ``poisoned`` version and flips
+    ``is_active`` by mode/reset — WITHOUT changing this trusted baseline.
+
+    The definition is imported from the single source of truth in the secure
+    tools module so the catalog matches the runtime registry exactly.
+    """
+    from mcp_servers.secure.tools.docs_fetch import CLEAN_DOCS_FETCH_DEFINITION
+
+    existing = session.exec(
+        select(MCPTool).where(MCPTool.name == "docs.fetch")
+    ).first()
+    if existing is not None:
+        return
+
+    tool = MCPTool(
+        server_id=server_id,
+        name="docs.fetch",
+        description=CLEAN_DOCS_FETCH_DEFINITION["description"],
+        input_schema=json.dumps(CLEAN_DOCS_FETCH_DEFINITION["inputSchema"], sort_keys=True),
+        output_schema=json.dumps(CLEAN_DOCS_FETCH_DEFINITION["outputSchema"], sort_keys=True),
+        # Descriptor: docs.fetch is the MCP03 lab tool. "low" flags it as a lab
+        # surface worth inspecting; it is NOT a verdict about exploitability.
+        risk="low",
+    )
+    session.add(tool)
+    session.commit()
+    session.refresh(tool)
+
+    version = ToolVersion(
+        tool_id=tool.id,
+        version=1,
+        definition=json.dumps(CLEAN_DOCS_FETCH_DEFINITION, sort_keys=True),
+        trust_status="trusted",
+        is_active=True,
+    )
+    session.add(version)
+    session.commit()
+    session.refresh(version)
+    tool.current_version_id = version.id
+    session.add(tool)
+    session.commit()
+
+
 def seed_baseline(session: Session) -> None:
     """Populate the baseline catalog if it is not already present.
 
@@ -162,6 +210,9 @@ def seed_baseline(session: Session) -> None:
         tool.current_version_id = version.id
         session.add(tool)
         session.commit()
+
+    # --- MCP03 lab tool: docs.fetch (trusted version only in Phase A) ----
+    _seed_docs_fetch_tool(session, server_id=server.id)
 
     # --- Lab catalog + descriptive vulnerability rows --------------------
     for spec in LAB_CATALOG:

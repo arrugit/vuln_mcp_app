@@ -115,18 +115,19 @@ def attack_lab(
     body: AttackRequest,
     session: Session = Depends(db_session),
 ) -> dict:
-    """Phase 0 stub: creates a run only; no exploit, no evidence (see module doc)."""
+    """Run the lab's deterministic attack simulation (FR-020).
+
+    Dispatches to the per-lab orchestrator by slug. MCP03 is implemented
+    (Phase A: clean flow, no leak yet); labs without an orchestrator return a
+    clear stub. This endpoint emits evidence — never a verdict (SEC-006).
+    """
+    from ..services.labs import run_lab_attack
+
     service = LabService(session)
     lab = service.get_lab(lab_id)
     if lab is None:
         raise HTTPException(status_code=404, detail="lab not found")
-    run = service.start_run(lab_id, trigger=body.trigger or "attack")
-    return {
-        "lab_run_id": run.id,
-        "evidence_ref": f"/api/evidence?lab_run_id={run.id}",
-        "telemetry_ref": f"/api/labs/{lab_id}/telemetry?lab_run_id={run.id}",
-        "note": "attack simulation is implemented per-lab in a later phase",
-    }
+    return run_lab_attack(session, lab, body.params)
 
 
 @router.get("/{lab_id}/telemetry")
