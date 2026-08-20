@@ -35,17 +35,30 @@ verification procedure.
 
 ---
 
-## Scenario S-MCP05 — Command Injection (`VULN-MCP05-001`) — PENDING
+## Scenario S-MCP05 — Command Injection (`VULN-MCP05-001`) — IMPLEMENTED
 
 | Field | Value |
 |---|---|
 | **Objective** | Detect command injection from an MCP tool argument to an exec sink |
-| **Trigger (planned)** | `report.export {"filename":"a.txt; echo PWNED > /work/marker"}` |
-| **Expected evidence (planned)** | constructed command string + `/work/marker` created in the sandbox |
+| **Target config** | MCP05 mode = `vulnerable` (baseline) |
+| **Trigger** | `report.export {"filename":"a.txt; echo PWNED > /work/marker"}` |
+| **Expected vulnerable behaviour** | `marker_present = true`; constructed command shows the injected `; echo PWNED` |
+| **Expected evidence** | `command_injection` evidence; telemetry `security_event=command_injection`; the two `report.export` versions diff-able |
 | **Expected OWASP class / severity** | MCP05 / Critical |
-| **Secure-mode (planned)** | validated/allow-listed filename + argv (no shell) → no marker |
+| **Expected detection result** | Detected (dataflow: untrusted arg → shell string → exec) |
+| **Secure-mode behaviour** | mode = `secure` → filename rejected by allow-list + argv exec; `marker_present=false`; evidence `command_exec`; FYP should report nothing |
+| **Reset** | `POST /api/labs/{id}/reset` → baseline `vulnerable`, evidence cleared, re-run reproduces identical evidence |
 
-Not implemented yet.
+**Automated coverage:**
+- `tests/test_mcp05_security.py::test_mcp05_command_injection`
+- `tests/test_mcp05_security.py::test_mcp05_secure_blocks_injection`
+- `tests/test_mcp05_security.py::test_mcp05_repeatable_evidence_after_reset`
+- `tests/test_mcp05_security.py::test_sandbox_timeout_kills_long_command`
+- `tests/test_mcp05_security.py::test_marker_is_confined_to_ephemeral_sandbox_dir`
+- `tests/test_mcp05_integration.py::*`
+
+**Manual steps:** see `docs/GROUND-TRUTH.md` → VULN-MCP05-001 → Manual
+verification procedure.
 
 ---
 

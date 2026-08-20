@@ -13,7 +13,7 @@ renumbers/renames.
 | MCP02 | Privilege Escalation via Scope Creep | no |
 | **MCP03** | **Tool Poisoning** | **yes — VULN-MCP03-001 (implemented)** |
 | MCP04 | Software Supply Chain Attacks & Dependency Tampering | no |
-| **MCP05** | **Command Injection & Execution** | **yes — VULN-MCP05-001 (pending)** |
+| **MCP05** | **Command Injection & Execution** | **yes — VULN-MCP05-001 (implemented)** |
 | MCP06 | Intent Flow Subversion | no |
 | MCP07 | Insufficient Authentication & Authorization | no |
 | MCP08 | Lack of Audit and Telemetry | infra only (telemetry) — NOT a lab |
@@ -36,11 +36,15 @@ renumbers/renames.
 - **Not MCP01 (Secret Exposure):** the secret is synthetic and the flaw is the
   poisoned tool, not generic secret storage.
 
-### MCP05 — Command Injection & Execution → `VULN-MCP05-001` (pending)
+### MCP05 — Command Injection & Execution → `VULN-MCP05-001` (implemented)
 
 - **Why MCP05:** untrusted input reaches a command construction sink via an MCP
   tool call — classic injection reached through the MCP delivery path.
 - **Detector capability exercised:** taint/dataflow analysis from input to sink.
+- **Component:** `mcp_servers/vulnerable/tools/report_export.py` (unsafe string
+  concatenation) + `sandbox/runner.py::run_shell`.
+- **Not MCP03:** the flaw is in the handler's command construction, not the tool
+  metadata (the stored definitions differ only to make the diff visible).
 
 ### MCP10 — Context Injection & Over-Sharing → `VULN-MCP10-001` (pending)
 
