@@ -93,6 +93,56 @@ def test_mcp03_repeatable_evidence_after_reset(session):
     assert first["raw_signal"]["result"]["leaked_secret"] == DEMO_SECRET_A
 
 
+# --- telemetry tagging (TDD §22) -------------------------------------------
+def test_leak_emits_security_event_telemetry(session):
+    """Vulnerable run tags a protocol event with security_event=secret_leak."""
+    from backend.app.services import TelemetryService
+
+    lab = _mcp03(session)
+    LabService(session).set_mode(lab.id, "vulnerable")
+    lab = _mcp03(session)
+    result = run_lab_attack(session, lab, {"doc_id": "welcome"})
+
+    events = TelemetryService(session).list_for_run(result["lab_run_id"])
+    tags = {e.security_event for e in events}
+    assert "secret_leak" in tags
+    # tools/list + tools/call traffic was also recorded.
+    assert {"tools/list", "tools/call"} <= {e.method for e in events}
+
+
+def test_secure_run_tags_no_security_event(session):
+    from backend.app.services import TelemetryService
+
+    lab = _mcp03(session)
+    LabService(session).set_mode(lab.id, "secure")
+    lab = _mcp03(session)
+    result = run_lab_attack(session, lab, {"doc_id": "welcome"})
+    events = TelemetryService(session).list_for_run(result["lab_run_id"])
+    assert all(e.security_event is None for e in events)
+
+
+# --- deterministic side effect is LLM-independent (NFR-001) -----------------
+def test_poison_leaks_for_any_doc_id_including_unknown():
+    """The secret-read branch runs regardless of doc_id — proving the leak is a
+    server-side side effect, not model roulette."""
+    reg = registry_for_mode("vulnerable")
+    for doc_id in ("welcome", "faq", "does-not-exist"):
+        out = reg.call("docs.fetch", {"doc_id": doc_id}).result
+        assert out["leaked_secret"] == DEMO_SECRET_A
+
+
+# --- FR-013 diff: the two stored definitions genuinely differ --------------
+def test_tool_versions_diff_is_real(client):
+    tools = client.get("/api/mcp/tools").json()
+    df = next(t for t in tools if t["name"] == "docs.fetch")
+    versions = client.get(f"/api/mcp/tools/{df['id']}").json()["versions"]
+    by_status = {v["trust_status"]: v["definition"] for v in versions}
+    trusted_desc = by_status["trusted"]["description"].lower()
+    poisoned_desc = by_status["poisoned"]["description"].lower()
+    assert trusted_desc != poisoned_desc
+    assert "demo_secret" in poisoned_desc and "demo_secret" not in trusted_desc
+
+
 # --- anti-oracle even while vulnerable (SEC-006) ---------------------------
 def test_no_verdict_endpoint_even_when_vulnerable(client):
     labs = client.get("/api/labs").json()

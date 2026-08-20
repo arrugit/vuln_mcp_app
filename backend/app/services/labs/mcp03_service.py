@@ -89,6 +89,20 @@ def run_attack(session: Session, lab: Lab, params: Dict[str, Any]) -> Dict[str, 
         },
     )
 
+    # Telemetry (TDD §22): when the poisoned tool leaks, emit a protocol-level
+    # event tagged with a neutral ``security_event``. This is a signal the FYP
+    # can observe in the trace — it describes WHAT happened, never a verdict
+    # (SEC-006). A clean run tags nothing.
+    if leaked:
+        telemetry.record(
+            direction="server->client",
+            method="tools/call",
+            payload={"name": "docs.fetch", "signal": "secret value present in result"},
+            lab_run_id=run.id,
+            mode=lab.mode,
+            security_event="secret_leak",
+        )
+
     return {
         "lab_run_id": run.id,
         "mode": lab.mode,
