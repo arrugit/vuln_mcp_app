@@ -26,9 +26,11 @@ phases must not modify already-finished code.
 ## Current implementation phase
 
 - **PHASE 0 — Foundation: COMPLETE** (committed + pushed to origin).
-- **MCP03 — Phase A (`phase/mcp03-foundation`): COMPLETE** (clean/trusted
-  `docs.fetch` wired end-to-end; NO poisoning yet — that is Phase B).
-- Active vulnerability: **MCP03** (Phase B is next, awaiting owner approval).
+- **MCP03 — Phase A (`phase/mcp03-foundation`): COMPLETE**.
+- **MCP03 — Phase B (`phase/mcp03-vulnerability`): COMPLETE** — poisoned
+  `docs.fetch` + genuinely-secure counterpart; deterministic leak; baseline mode
+  = vulnerable; reset restores baseline; security/secure/determinism tests.
+- Active vulnerability: **MCP03** (Phase C — UI/integration — is next).
 
 ## Branch structure & status
 

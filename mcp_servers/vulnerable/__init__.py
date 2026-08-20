@@ -16,18 +16,13 @@ Nothing in this tree may contact external systems (SEC-005).
 def build_vulnerable_registry():
     """Return the VULNERABLE tool registry.
 
-    MCP03 Phase A status: this registers the CLEAN ``docs.fetch`` (same as the
-    secure registry) — the poisoning behaviour does NOT exist yet; it is
-    introduced in MCP03 Phase B, which will swap this to the poisoned handler
-    from ``mcp_servers.vulnerable.tools.docs_fetch``. Keeping it clean here means
-    the foundation branch ships with no exploitable behaviour.
+    MCP03 (Phase B): this registers the POISONED ``docs.fetch`` — poisoned
+    metadata + deterministic secret-read branch (VULN-MCP03-001). The secure
+    registry keeps the clean variant, so mode alone flips the behaviour.
     """
     from ..common import build_baseline_registry
-
-    # Phase A: reuse the trusted/clean docs.fetch registration. Phase B replaces
-    # this import with the poisoned variant for vulnerable mode only.
-    from ..secure.tools.docs_fetch import register_docs_fetch
+    from .tools.docs_fetch import register_poisoned_docs_fetch
 
     registry = build_baseline_registry()
-    register_docs_fetch(registry)
+    register_poisoned_docs_fetch(registry)  # MCP03: poisoned docs.fetch
     return registry

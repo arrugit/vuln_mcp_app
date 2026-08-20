@@ -97,6 +97,19 @@ LAB_CATALOG = [
 # Name of the single local MCP server registered in Phase 0.
 SERVER_NAME = "local-mcp-server"
 
+# Labs whose vulnerability is implemented (drives catalog status).
+IMPLEMENTED_LABS = {"mcp03-tool-poisoning"}
+
+# Baseline (reset) mode per lab. An implemented lab defaults to the VULNERABLE
+# target state (TDD §18) so the FYP evaluates a vulnerable target by default;
+# not-yet-built labs stay secure/inert. Reset restores these exactly (RST-001),
+# which is why the baseline is documented here as the single source of truth.
+BASELINE_MODES = {
+    "mcp03-tool-poisoning": "vulnerable",
+    "mcp05-command-injection": "secure",
+    "mcp10-context-oversharing": "secure",
+}
+
 
 def _tool_definition_json(tool: dict) -> str:
     """Serialise a legit tool's full definition (for its trusted ToolVersion)."""
@@ -112,17 +125,20 @@ def _tool_definition_json(tool: dict) -> str:
 
 
 def _seed_docs_fetch_tool(session: Session, *, server_id: int) -> None:
-    """Seed the MCP03 ``docs.fetch`` tool with its TRUSTED version (Phase A).
+    """Seed the MCP03 ``docs.fetch`` tool with BOTH stored versions (FR-013).
 
-    The DB catalog row + ``tool_versions`` back the tool viewer and the future
-    trusted-vs-poisoned diff (FR-013). Phase A seeds only the ``trusted`` version
-    (``is_active=True``). Phase B adds the ``poisoned`` version and flips
-    ``is_active`` by mode/reset — WITHOUT changing this trusted baseline.
+    Two ``tool_versions`` are stored so the trusted-vs-poisoned diff is
+    inspectable in the tool viewer:
+      * ``trusted``  — the clean definition (secure variant);
+      * ``poisoned`` — the poisoned definition (vulnerable variant).
 
-    The definition is imported from the single source of truth in the secure
-    tools module so the catalog matches the runtime registry exactly.
+    ``is_active`` reflects the lab's baseline mode (``BASELINE_MODES``): vulnerable
+    baseline -> poisoned active. Both are metadata about stored artefacts, never a
+    runtime verdict (SEC-006). The definitions are imported from the single
+    sources of truth in the tool modules so the catalog matches the registries.
     """
     from mcp_servers.secure.tools.docs_fetch import CLEAN_DOCS_FETCH_DEFINITION
+    from mcp_servers.vulnerable.tools.docs_fetch import POISONED_DOCS_FETCH_DEFINITION
 
     existing = session.exec(
         select(MCPTool).where(MCPTool.name == "docs.fetch")
@@ -130,31 +146,46 @@ def _seed_docs_fetch_tool(session: Session, *, server_id: int) -> None:
     if existing is not None:
         return
 
+    baseline_mode = BASELINE_MODES.get("mcp03-tool-poisoning", "secure")
+    poisoned_active = baseline_mode == "vulnerable"
+
+    # The catalog row's visible description tracks the active baseline so the
+    # tool viewer shows what is actually being served.
+    active_def = (
+        POISONED_DOCS_FETCH_DEFINITION if poisoned_active else CLEAN_DOCS_FETCH_DEFINITION
+    )
     tool = MCPTool(
         server_id=server_id,
         name="docs.fetch",
-        description=CLEAN_DOCS_FETCH_DEFINITION["description"],
-        input_schema=json.dumps(CLEAN_DOCS_FETCH_DEFINITION["inputSchema"], sort_keys=True),
-        output_schema=json.dumps(CLEAN_DOCS_FETCH_DEFINITION["outputSchema"], sort_keys=True),
-        # Descriptor: docs.fetch is the MCP03 lab tool. "low" flags it as a lab
-        # surface worth inspecting; it is NOT a verdict about exploitability.
+        description=active_def["description"],
+        input_schema=json.dumps(active_def["inputSchema"], sort_keys=True),
+        output_schema=json.dumps(active_def["outputSchema"], sort_keys=True),
         risk="low",
     )
     session.add(tool)
     session.commit()
     session.refresh(tool)
 
-    version = ToolVersion(
+    trusted = ToolVersion(
         tool_id=tool.id,
         version=1,
         definition=json.dumps(CLEAN_DOCS_FETCH_DEFINITION, sort_keys=True),
         trust_status="trusted",
-        is_active=True,
+        is_active=not poisoned_active,
     )
-    session.add(version)
+    poisoned = ToolVersion(
+        tool_id=tool.id,
+        version=2,
+        definition=json.dumps(POISONED_DOCS_FETCH_DEFINITION, sort_keys=True),
+        trust_status="poisoned",
+        is_active=poisoned_active,
+    )
+    session.add(trusted)
+    session.add(poisoned)
     session.commit()
-    session.refresh(version)
-    tool.current_version_id = version.id
+    session.refresh(trusted)
+    session.refresh(poisoned)
+    tool.current_version_id = poisoned.id if poisoned_active else trusted.id
     session.add(tool)
     session.commit()
 
@@ -224,8 +255,10 @@ def seed_baseline(session: Session) -> None:
                 owasp_id=spec["owasp_id"],
                 severity=spec["severity"],
                 difficulty=spec["difficulty"],
-                mode="secure",       # inert in Phase 0 (no vuln code yet)
-                status="pending",     # implementation lands in later phases
+                # Implemented labs boot at their documented baseline mode
+                # (MCP03 -> vulnerable). Unbuilt labs stay secure/pending.
+                mode=BASELINE_MODES.get(spec["slug"], "secure"),
+                status="ready" if spec["slug"] in IMPLEMENTED_LABS else "pending",
                 order_index=spec["order_index"],
             )
             session.add(lab)

@@ -29,13 +29,13 @@ def test_docs_fetch_registered_in_both_modes():
         assert reg.has("docs.fetch"), f"docs.fetch missing in {mode} registry"
 
 
-def test_docs_fetch_metadata_is_clean_in_phase_a():
-    """Phase A: the description carries no embedded instruction (no poison yet)."""
-    reg = registry_for_mode("vulnerable")
+def test_secure_docs_fetch_metadata_is_clean():
+    """The SECURE registry's docs.fetch description carries no embedded
+    instruction. (The vulnerable registry's poisoned description is asserted in
+    the MCP03 security tests.)"""
+    reg = registry_for_mode("secure")
     definition = reg.get("docs.fetch").definition()
     desc = definition["description"].lower()
-    # Clean, factual description — none of the instruction-bearing phrasing a
-    # poisoned tool would use.
     for smell in ("always", "also read", "reveal", "ignore", "secret"):
         assert smell not in desc
 
@@ -55,19 +55,26 @@ def test_docs_fetch_unknown_doc_is_not_found():
 
 
 # --- DB catalog (trusted version seeded) -----------------------------------
-def test_docs_fetch_seeded_with_trusted_version(client):
+def test_docs_fetch_seeded_with_both_versions(client):
+    """FR-013: both the trusted and poisoned definitions are stored + diff-able.
+    At the MCP03 baseline (vulnerable) the poisoned version is the active one."""
     tools = client.get("/api/mcp/tools").json()
     docs_fetch = next((t for t in tools if t["name"] == "docs.fetch"), None)
     assert docs_fetch is not None
     detail = client.get(f"/api/mcp/tools/{docs_fetch['id']}").json()
     versions = detail["versions"]
-    assert len(versions) == 1
-    assert versions[0]["trust_status"] == "trusted"
-    assert versions[0]["is_active"] is True
+    statuses = {v["trust_status"] for v in versions}
+    assert statuses == {"trusted", "poisoned"}
+    active = [v for v in versions if v["is_active"]]
+    assert len(active) == 1
+    assert active[0]["trust_status"] == "poisoned"  # baseline = vulnerable
 
 
 # --- orchestrator end-to-end (clean; no leak) ------------------------------
 def test_mcp03_attack_runs_clean_and_records_evidence(session):
+    lab = _mcp03_lab(session)
+    # This test pins the SECURE behaviour explicitly (baseline is vulnerable).
+    LabService(session).set_mode(lab.id, "secure")
     lab = _mcp03_lab(session)
     result = run_lab_attack(session, lab, {"doc_id": "welcome"})
     # It performed the exact exploit call shape...
@@ -92,6 +99,8 @@ def test_mcp03_attack_runs_clean_and_records_evidence(session):
 def test_mcp03_attack_via_api_emits_no_verdict(client):
     labs = client.get("/api/labs").json()
     lab = next(l for l in labs if l["owasp_id"] == "MCP03")
+    # Pin secure mode so this stays a clean-path assertion.
+    client.post(f"/api/labs/{lab['id']}/mode", json={"mode": "secure"})
     resp = client.post(f"/api/labs/{lab['id']}/attack", json={"params": {"doc_id": "welcome"}})
     assert resp.status_code == 200
     body = resp.json()
