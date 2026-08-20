@@ -95,6 +95,40 @@ def test_mcp05_repeatable_evidence_after_reset(session):
     assert first["marker"] is True
 
 
+# --- other separators also inject in vulnerable mode (dataflow, not payload) -
+def test_alternate_separators_also_inject():
+    """The flaw is unsafe shell construction, not one specific payload: other
+    shell separators reach the sink too."""
+    reg = registry_for_mode("vulnerable")
+    for payload in (
+        "a.txt && echo PWNED > /work/marker",
+        "a.txt | tee /work/marker",
+    ):
+        out = reg.call("report.export", {"filename": payload}).result
+        assert out["marker_present"] is True, payload
+
+
+# --- sandbox timeout control (SEC-003) -------------------------------------
+def test_sandbox_timeout_kills_long_command():
+    """A command that outruns the timeout is killed — a key containment control."""
+    from sandbox.runner import SandboxRunner
+
+    with SandboxRunner(timeout=1) as sb:
+        result = sb.run_shell("sleep 5")
+    assert result.timed_out is True
+
+
+# --- FR-013 diff: trusted vs unsafe stored definitions differ --------------
+def test_report_export_versions_diff_is_real(client):
+    tools = client.get("/api/mcp/tools").json()
+    tool = next(t for t in tools if t["name"] == "report.export")
+    versions = client.get(f"/api/mcp/tools/{tool['id']}").json()["versions"]
+    by_status = {v["trust_status"]: v["definition"]["description"].lower() for v in versions}
+    assert by_status["trusted"] != by_status["poisoned"]
+    # The unsafe version's description reveals the shell construction.
+    assert "shell command" in by_status["poisoned"]
+
+
 # --- containment: marker lands in the ephemeral dir, cleaned up -------------
 def test_marker_is_confined_to_ephemeral_sandbox_dir():
     """The injection creates the marker inside the throwaway work dir, which is
