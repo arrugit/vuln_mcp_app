@@ -74,6 +74,11 @@ class ToolRegistry:
     def has(self, name: str) -> bool:
         return name in self._tools
 
+    def unregister(self, name: str) -> None:
+        """Remove a registered tool (used when a lab swaps a clean tool for its
+        poisoned variant in vulnerable mode). Safe no-op if absent."""
+        self._tools.pop(name, None)
+
     def get(self, name: str) -> Tool:
         return self._tools[name]
 

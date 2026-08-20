@@ -10,10 +10,15 @@ parameterised exec, session-scoped authorization) — never merely hide symptoms
 
 
 def build_secure_registry():
-    """Return a registry with the baseline safe tools only (Phase 0).
+    """Return the SECURE tool registry.
 
-    Later phases extend this to register the lab-specific *secure* tool variants.
+    Baseline safe tools + the lab-specific *secure* tool variants implemented so
+    far. MCP03 (Phase A) adds the clean ``docs.fetch``. This registry must never
+    contain a poisoned tool (SEC-007).
     """
     from ..common import build_baseline_registry
+    from .tools.docs_fetch import register_docs_fetch
 
-    return build_baseline_registry()
+    registry = build_baseline_registry()
+    register_docs_fetch(registry)  # MCP03: trusted/clean docs.fetch
+    return registry

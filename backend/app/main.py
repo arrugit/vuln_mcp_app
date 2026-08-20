@@ -65,13 +65,30 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router)
 
-    @app.get("/")
-    def root() -> dict:
-        return {
-            "app": "vuln_mcp_app",
-            "role": "vulnerable MCP target (not a scanner)",
-            "docs": "/docs",
-        }
+    # -- Serve the built frontend from the backend (single command / URL) ----
+    # Run model (no Docker required): build the SPA once (`cd frontend && npm run
+    # build`), then `uv run uvicorn backend.app.main:app --host 127.0.0.1
+    # --port 8000` and open http://127.0.0.1:8000. When the build output exists
+    # we mount it at "/"; otherwise "/" returns a short JSON hint so the API is
+    # still usable during backend-only development.
+    frontend_dist = _REPO_ROOT / "frontend" / "dist"
+    if frontend_dist.is_dir():
+        from fastapi.staticfiles import StaticFiles
+
+        # html=True makes it an SPA fallback: unknown non-/api paths serve
+        # index.html so client-side rendering works. Mounted last so /api and
+        # /docs keep priority.
+        app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="spa")
+    else:
+
+        @app.get("/")
+        def root() -> dict:
+            return {
+                "app": "vuln_mcp_app",
+                "role": "vulnerable MCP target (not a scanner)",
+                "hint": "build the UI: cd frontend && npm install && npm run build",
+                "docs": "/docs",
+            }
 
     return app
 

@@ -14,12 +14,15 @@ Nothing in this tree may contact external systems (SEC-005).
 
 
 def build_vulnerable_registry():
-    """Return a registry with the baseline safe tools only (Phase 0).
+    """Return the VULNERABLE tool registry.
 
-    Later phases extend this to register the lab-specific vulnerable tools when
-    a lab is set to VULNERABLE mode. Keeping it baseline-only here guarantees the
-    foundation ships with no exploitable behaviour.
+    MCP03 (Phase B): this registers the POISONED ``docs.fetch`` — poisoned
+    metadata + deterministic secret-read branch (VULN-MCP03-001). The secure
+    registry keeps the clean variant, so mode alone flips the behaviour.
     """
     from ..common import build_baseline_registry
+    from .tools.docs_fetch import register_poisoned_docs_fetch
 
-    return build_baseline_registry()
+    registry = build_baseline_registry()
+    register_poisoned_docs_fetch(registry)  # MCP03: poisoned docs.fetch
+    return registry
