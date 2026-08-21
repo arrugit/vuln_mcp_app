@@ -248,6 +248,47 @@ def _seed_report_export_tool(session: Session, *, server_id: int) -> None:
     session.commit()
 
 
+def _seed_memory_recall_tool(session: Session, *, server_id: int) -> None:
+    """Seed the MCP10 ``memory.recall`` tool with its TRUSTED version (Phase A).
+
+    Phase A seeds only the ``trusted`` (session-scoped) definition. Phase B adds
+    the ``poisoned`` (missing-ownership-check) version + the baseline flip.
+    """
+    from mcp_servers.secure.tools.memory_recall import CLEAN_MEMORY_RECALL_DEFINITION
+
+    existing = session.exec(
+        select(MCPTool).where(MCPTool.name == "memory.recall")
+    ).first()
+    if existing is not None:
+        return
+
+    tool = MCPTool(
+        server_id=server_id,
+        name="memory.recall",
+        description=CLEAN_MEMORY_RECALL_DEFINITION["description"],
+        input_schema=json.dumps(CLEAN_MEMORY_RECALL_DEFINITION["inputSchema"], sort_keys=True),
+        output_schema=json.dumps(CLEAN_MEMORY_RECALL_DEFINITION["outputSchema"], sort_keys=True),
+        risk="low",
+    )
+    session.add(tool)
+    session.commit()
+    session.refresh(tool)
+
+    version = ToolVersion(
+        tool_id=tool.id,
+        version=1,
+        definition=json.dumps(CLEAN_MEMORY_RECALL_DEFINITION, sort_keys=True),
+        trust_status="trusted",
+        is_active=True,
+    )
+    session.add(version)
+    session.commit()
+    session.refresh(version)
+    tool.current_version_id = version.id
+    session.add(tool)
+    session.commit()
+
+
 def seed_baseline(session: Session) -> None:
     """Populate the baseline catalog if it is not already present.
 
@@ -305,6 +346,9 @@ def seed_baseline(session: Session) -> None:
 
     # --- MCP05 lab tool: report.export (trusted version only in Phase A) -
     _seed_report_export_tool(session, server_id=server.id)
+
+    # --- MCP10 lab tool: memory.recall (trusted version only in Phase A) -
+    _seed_memory_recall_tool(session, server_id=server.id)
 
     # --- Lab catalog + descriptive vulnerability rows --------------------
     for spec in LAB_CATALOG:

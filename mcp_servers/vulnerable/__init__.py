@@ -30,4 +30,11 @@ def build_vulnerable_registry():
     from .tools.report_export import register_unsafe_report_export
 
     register_unsafe_report_export(registry)
+
+    # MCP10 Phase A: register the SECURE memory.recall in vulnerable mode too —
+    # the missing-ownership-check variant arrives in MCP10 Phase B, which will
+    # register the vulnerable handler here instead.
+    from ..secure.tools.memory_recall import register_memory_recall
+
+    register_memory_recall(registry)
     return registry

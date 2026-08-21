@@ -18,12 +18,13 @@ from typing import Any, Callable, Dict
 from sqlmodel import Session
 
 from ...models import Lab
-from . import mcp03_service, mcp05_service
+from . import mcp03_service, mcp05_service, mcp10_service
 
 # slug -> orchestrator(session, lab, params) -> result dict
 _DISPATCH: Dict[str, Callable[[Session, Lab, Dict[str, Any]], Dict[str, Any]]] = {
     "mcp03-tool-poisoning": mcp03_service.run_attack,
     "mcp05-command-injection": mcp05_service.run_attack,
+    "mcp10-context-oversharing": mcp10_service.run_attack,
 }
 
 
@@ -40,4 +41,4 @@ def run_lab_attack(
     return orchestrator(session, lab, params)
 
 
-__all__ = ["run_lab_attack", "mcp03_service", "mcp05_service"]
+__all__ = ["run_lab_attack", "mcp03_service", "mcp05_service", "mcp10_service"]
