@@ -123,3 +123,7 @@ def reset_database(session: Session) -> None:
     from labs.mcp03_tool_poisoning.fixtures import reset_store
 
     reset_store()
+    # Restore the MCP10 context store (re-seed synthetic sessions/contexts).
+    from labs.mcp10_context_oversharing.fixtures import reset_context_store
+
+    reset_context_store()

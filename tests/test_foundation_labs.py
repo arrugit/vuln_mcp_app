@@ -49,13 +49,13 @@ def test_missing_lab_returns_404(client):
     assert client.get("/api/labs/9999").status_code == 404
 
 
-def test_attack_stub_for_unimplemented_lab(client):
-    """Labs without an orchestrator return a clear stub (MCP10 until built)."""
+def test_all_labs_have_a_real_orchestrator(client):
+    """All three labs are implemented: /attack dispatches to a real orchestrator
+    (returns a lab_run_id), not the not-implemented stub."""
     labs = client.get("/api/labs").json()
-    mcp10 = next(lab for lab in labs if lab["owasp_id"] == "MCP10")
-    resp = client.post(f"/api/labs/{mcp10['id']}/attack", json={"trigger": "noop"})
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["implemented"] is False
-    # No run/evidence should have been created for a stubbed lab.
-    assert client.get("/api/evidence").json() == []
+    for lab in labs:
+        resp = client.post(f"/api/labs/{lab['id']}/attack", json={"params": {}})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("implemented") is not False
+        assert "lab_run_id" in body

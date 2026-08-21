@@ -175,6 +175,32 @@ def add_doc(
     return {"doc_id": doc.doc_id, "title": doc.title, "added": True}
 
 
+@router.get("/{lab_id}/sessions")
+def list_sessions(lab_id: int, session: Session = Depends(db_session)) -> list[dict]:
+    """List the MCP10 synthetic sessions + their contexts (for manual testing).
+
+    This shows the two users' tokens and what each remembers, so the owner can
+    call memory.recall as one session and observe whether the other's data leaks.
+    """
+    service = LabService(session)
+    lab = service.get_lab(lab_id)
+    if lab is None:
+        raise HTTPException(status_code=404, detail="lab not found")
+    if lab.slug != "mcp10-context-oversharing":
+        raise HTTPException(status_code=400, detail="sessions only apply to MCP10")
+    from labs.mcp10_context_oversharing.fixtures import get_context_store
+
+    return [
+        {
+            "session_token": s.token,
+            "user_label": s.user_label,
+            "context": s.context_name,
+            "entry_keys": [e.key for e in s.entries],
+        }
+        for s in get_context_store().list_sessions()
+    ]
+
+
 @router.post("/{lab_id}/llm")
 def llm_probe(
     lab_id: int, body: LlmProbeRequest, session: Session = Depends(db_session)
