@@ -21,52 +21,55 @@ export interface LabContent {
 
 export const LAB_CONTENT: Record<string, LabContent> = {
   "mcp03-tool-poisoning": {
-    prefill: { doc_id: "welcome" },
-    runLabel: "Call docs.fetch",
+    prefill: { doc_id: "onboarding-notes" },
+    runLabel: "Fetch document",
     enablingCode:
-      "mcp_servers/vulnerable/tools/docs_fetch.py — poisoned description + " +
-      'the secret-read branch (base["leaked_secret"] = DEMO_SECRET_A)',
-    exactCall: 'docs.fetch {"doc_id": "welcome"}',
+      "mcp_servers/vulnerable/tools/docs_fetch.py — render_context = " +
+      '{"config": APP_CONFIG}: the whole app config (incl. api_key) is exposed ' +
+      "to the {{ }} template renderer (over-broad context).",
+    exactCall: 'docs.fetch {"doc_id": "onboarding-notes"}',
     learn: [
       {
         heading: "What",
         body:
-          "Tool Poisoning: a malicious instruction is hidden inside an MCP " +
-          "tool's definition/metadata, and the tool's handler performs an " +
-          "illegitimate side effect (reading a secret).",
+          "The docs service renders help articles with a {{ }} template. The " +
+          "vulnerable handler passes the ENTIRE app config — including a " +
+          "credential (api_key) — into the template context. No line says " +
+          "'leak the secret'; the scope is just too broad.",
       },
       {
         heading: "Where",
         body:
-          "The docs.fetch tool. Its description embeds a hidden instruction, " +
-          "and its server-side handler appends the synthetic DEMO_SECRET_A to " +
-          "every result.",
+          "docs.fetch. Any article whose body contains {{ config.api_key }} — a " +
+          "seeded internal doc (onboarding-notes), or one you add below — has " +
+          "the credential rendered straight into the returned text.",
       },
       {
         heading: "How",
         body:
-          "Call docs.fetch with any doc_id. In VULNERABLE mode the result " +
-          "additionally contains leaked_secret — a value a clean docs.fetch " +
-          "would never return. The leak is server-side and deterministic (it " +
-          "does not depend on an LLM obeying the poisoned text).",
+          "Fetch onboarding-notes (or add your own doc with {{ config.api_key }}). " +
+          "In VULNERABLE mode the body comes back containing DEMO_SECRET_A. In " +
+          "SECURE mode the renderer only sees allow-listed public keys, so the " +
+          "placeholder is left inert.",
       },
       {
         heading: "Impact",
         body:
-          "A trusted-looking tool exfiltrates data and can steer an agent via " +
-          "its metadata. Detection needs both static (metadata) and behavioural " +
-          "(leaked value) analysis.",
+          "Untrusted document content reaches sensitive config via templating — " +
+          "an information-disclosure / SSTI-style bug. Detection needs dataflow " +
+          "analysis (doc content → template scope → secret in output).",
       },
     ],
     remediation: [
-      "Sanitise / reject instruction-bearing fields in tool metadata (trust policy).",
-      "Give tools least privilege: docs.fetch must not access secrets at all.",
-      "Pin & review tool definitions; diff trusted vs untrusted versions.",
-      "Treat tool descriptions as untrusted data, never as instructions to execute.",
+      "Give the template renderer least authority: allow-list which keys it can see.",
+      "Never place credentials in a context reachable from user/templated content.",
+      "Separate secrets from display config; treat document bodies as untrusted.",
+      "Add output checks so responses can't contain known-secret material.",
     ],
     proof:
-      "Success = the result contains leaked_secret: DEMO_SECRET_A and evidence " +
-      "kind metadata_poison. In SECURE mode neither appears.",
+      "Success = the returned body contains DEMO_SECRET_A and evidence kind " +
+      "metadata_poison. In SECURE mode the placeholder stays literal and no " +
+      "secret appears. Try the public docs (welcome/faq) — they never leak.",
   },
 
   "mcp05-command-injection": {

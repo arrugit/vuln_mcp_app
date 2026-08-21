@@ -138,7 +138,7 @@ def _seed_docs_fetch_tool(session: Session, *, server_id: int) -> None:
     sources of truth in the tool modules so the catalog matches the registries.
     """
     from mcp_servers.secure.tools.docs_fetch import CLEAN_DOCS_FETCH_DEFINITION
-    from mcp_servers.vulnerable.tools.docs_fetch import POISONED_DOCS_FETCH_DEFINITION
+    from mcp_servers.vulnerable.tools.docs_fetch import DOCS_FETCH_DEFINITION
 
     existing = session.exec(
         select(MCPTool).where(MCPTool.name == "docs.fetch")
@@ -152,7 +152,7 @@ def _seed_docs_fetch_tool(session: Session, *, server_id: int) -> None:
     # The catalog row's visible description tracks the active baseline so the
     # tool viewer shows what is actually being served.
     active_def = (
-        POISONED_DOCS_FETCH_DEFINITION if poisoned_active else CLEAN_DOCS_FETCH_DEFINITION
+        DOCS_FETCH_DEFINITION if poisoned_active else CLEAN_DOCS_FETCH_DEFINITION
     )
     tool = MCPTool(
         server_id=server_id,
@@ -176,7 +176,7 @@ def _seed_docs_fetch_tool(session: Session, *, server_id: int) -> None:
     poisoned = ToolVersion(
         tool_id=tool.id,
         version=2,
-        definition=json.dumps(POISONED_DOCS_FETCH_DEFINITION, sort_keys=True),
+        definition=json.dumps(DOCS_FETCH_DEFINITION, sort_keys=True),
         trust_status="poisoned",
         is_active=poisoned_active,
     )

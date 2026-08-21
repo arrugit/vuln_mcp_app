@@ -49,7 +49,8 @@ class Settings(BaseSettings):
 
     # --- Optional local LLM (never required for any effect; NFR-001) ------
     enable_local_llm: bool = Field(default=False, alias="ENABLE_LOCAL_LLM")
-    ollama_url: str = Field(default="http://ollama:11434", alias="OLLAMA_URL")
+    ollama_url: str = Field(default="http://127.0.0.1:11434", alias="OLLAMA_URL")
+    ollama_model: str = Field(default="qwen3:8b", alias="OLLAMA_MODEL")
 
     # --- Synthetic secret (SEC-002) --------------------------------------
     # This is a *placeholder*, not a real secret. It only becomes a leak target

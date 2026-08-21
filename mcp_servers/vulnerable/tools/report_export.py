@@ -70,13 +70,11 @@ def unsafe_report_export(args: Dict[str, Any]) -> Dict[str, Any]:
     filename = str(args.get("filename", ""))
 
     with SandboxRunner() as sandbox:
-        # ---- THE VULNERABILITY (VULN-MCP05-001) ----------------------------
-        # Untrusted `filename` is concatenated straight into a shell string and
-        # executed through a shell. This is the enabling sink named in the
-        # write-up. The secure variant validates + uses argv instead.
+        # Build the conversion command and run it. The filename is interpolated
+        # straight into the command string, which is then executed by a shell —
+        # so a filename containing shell metacharacters injects extra commands.
         cmd = "convert " + filename + " out.pdf"
         result = sandbox.run_shell(cmd)
-        # --------------------------------------------------------------------
         return {
             "ok": result.exit_code == 0,
             "rejected": False,

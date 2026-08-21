@@ -6,7 +6,7 @@ import { LAB_CONTENT } from "./labContent";
 describe("LAB_CONTENT", () => {
   it("MCP03 pre-fills the docs.fetch doc_id and points at the enabling code", () => {
     const c = LAB_CONTENT["mcp03-tool-poisoning"];
-    expect(c.prefill).toEqual({ doc_id: "welcome" });
+    expect(c.prefill).toEqual({ doc_id: "onboarding-notes" });
     expect(c.enablingCode).toContain("docs_fetch.py");
     expect(c.exactCall).toContain("docs.fetch");
   });

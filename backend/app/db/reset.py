@@ -119,3 +119,7 @@ def reset_database(session: Session) -> None:
     seed_baseline(session)
     # Restore toggled modes + active tool version to the documented baseline.
     apply_baseline_modes(session)
+    # Restore the MCP03 document store (drop user-added docs, re-seed corpus).
+    from labs.mcp03_tool_poisoning.fixtures import reset_store
+
+    reset_store()

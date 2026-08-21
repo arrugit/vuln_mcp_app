@@ -22,12 +22,12 @@ GROUND_TRUTH = [
     {
         "slug": "mcp03-tool-poisoning",
         "vuln_code": "VULN-MCP03-001",
-        "params": {"doc_id": "welcome"},
+        "params": {"doc_id": "onboarding-notes"},
         "vuln_kind": "metadata_poison",
         "secure_kind": "tool_fetch",
-        # A predicate over the attack result proving the exploit worked.
-        "proof": lambda r: r["result"].get("leaked_secret") == "DEMO_SECRET_A",
-        "secure_proof": lambda r: "leaked_secret" not in r["result"],
+        # Proof: the credential is rendered into the returned article body.
+        "proof": lambda r: "DEMO_SECRET_A" in (r["result"].get("body") or ""),
+        "secure_proof": lambda r: "DEMO_SECRET_A" not in (r["result"].get("body") or ""),
     },
     {
         "slug": "mcp05-command-injection",

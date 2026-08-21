@@ -22,19 +22,21 @@ renumbers/renames.
 
 ## Mapping detail
 
-### MCP03 — Tool Poisoning → `VULN-MCP03-001` (implemented)
+### MCP03 — Tool Poisoning → `VULN-MCP03-001` (implemented, reworked 2026-08-21)
 
-- **Why MCP03:** the vulnerability lives in the MCP **tool definition/metadata**
-  and the tool handler — malicious/misleading instructions injected via a tool
-  definition to manipulate behaviour, plus a data-exfiltration side effect. This
-  is MCP-native (it only exists because of MCP's tool-definition trust model).
-- **Detector capability exercised:** static analysis of tool metadata +
-  behavioural analysis of tool output.
-- **Component:** `mcp_servers/vulnerable/tools/docs_fetch.py`.
-- **Not MCP06 (Intent Flow Subversion):** the effect here is deterministic and
-  server-side, not an LLM's objective being hijacked at runtime.
-- **Not MCP01 (Secret Exposure):** the secret is synthetic and the flaw is the
-  poisoned tool, not generic secret storage.
+- **Why MCP03:** the tool's output is *poisoned* with sensitive data because
+  untrusted document content is rendered against an over-broad template context
+  that transitively exposes a credential. The optional Ollama facet adds the
+  classic tool/context poisoning where a model follows instructions embedded in
+  tool output (indirect prompt injection).
+- **Detector capability exercised:** dataflow/taint analysis (untrusted content →
+  template scope holding config → secret in tool output); optionally, prompt-
+  injection detection against a live model.
+- **Component:** `mcp_servers/vulnerable/tools/docs_fetch.py`
+  (`render_context = {"config": APP_CONFIG}`).
+- **Realism note:** the deterministic core has no "leak this secret" line — it is
+  an accidental over-broad-context bug, so a scanner must find it by analysis, not
+  by a giveaway. (Determinism preserved; Ollama path is optional, NFR-001.)
 
 ### MCP05 — Command Injection & Execution → `VULN-MCP05-001` (implemented)
 

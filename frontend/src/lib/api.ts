@@ -3,6 +3,7 @@
 // real surfaces, not the browser.
 
 import type {
+  DocSummary,
   EvidenceRecord,
   Health,
   LabDetail,
@@ -56,4 +57,10 @@ export const api = {
     ),
   listTools: () => getJSON<MCPToolSummary[]>("/mcp/tools"),
   getTool: (id: number) => getJSON<MCPToolDetail>(`/mcp/tools/${id}`),
+  // MCP03 docs corpus (list + add-your-own).
+  listDocs: (labId: number) => getJSON<DocSummary[]>(`/labs/${labId}/docs`),
+  addDoc: (labId: number, doc: { doc_id: string; title: string; body: string }) =>
+    postJSON<{ doc_id: string; added: boolean }>(`/labs/${labId}/docs`, doc),
+  llmProbe: (labId: number, docId: string) =>
+    postJSON<Record<string, unknown>>(`/labs/${labId}/llm`, { doc_id: docId }),
 };

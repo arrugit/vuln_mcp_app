@@ -52,6 +52,13 @@ export interface TelemetryEventView {
   security_event: string | null;
 }
 
+export interface DocSummary {
+  doc_id: string;
+  title: string;
+  author: string;
+  seeded: boolean;
+}
+
 export interface MCPToolSummary {
   id: number;
   server_id: number;

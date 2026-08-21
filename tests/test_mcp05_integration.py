@@ -104,7 +104,7 @@ def test_both_labs_coexist_independently(client):
     labs = client.get("/api/labs").json()
     m3 = next(l["id"] for l in labs if l["owasp_id"] == "MCP03")
     m5 = next(l["id"] for l in labs if l["owasp_id"] == "MCP05")
-    r3 = client.post(f"/api/labs/{m3}/attack", json={"params": {"doc_id": "welcome"}}).json()
+    r3 = client.post(f"/api/labs/{m3}/attack", json={"params": {"doc_id": "onboarding-notes"}}).json()
     r5 = client.post(f"/api/labs/{m5}/attack", json={"params": {"filename": INJECTION_PAYLOAD}}).json()
     k3 = client.get(f"/api/evidence?lab_run_id={r3['lab_run_id']}").json()[0]["kind"]
     k5 = client.get(f"/api/evidence?lab_run_id={r5['lab_run_id']}").json()[0]["kind"]

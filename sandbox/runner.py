@@ -145,6 +145,25 @@ class SandboxRunner:
     def marker_present(self) -> bool:
         return self.marker_path.exists()
 
+    def _write_convert_shim(self) -> str:
+        """Write a tiny executable `convert` into a PATH dir inside the work dir.
+
+        Stands in for a real image/doc converter (allow-listed program, SEC-003).
+        Returns the directory to prepend to PATH.
+        """
+        shim_dir = os.path.join(self._require_workdir(), ".bin")
+        os.makedirs(shim_dir, exist_ok=True)
+        shim = os.path.join(shim_dir, "convert")
+        with open(shim, "w", newline="\n", encoding="utf-8") as handle:
+            handle.write(
+                '#!/usr/bin/env bash\n'
+                '# minimal stand-in converter: writes a placeholder output file\n'
+                ': > "${2:-out.pdf}"\n'
+                'echo "converted ${1:-?} -> ${2:-out.pdf}"\n'
+            )
+        os.chmod(shim, 0o755)
+        return shim_dir
+
     def convert_argv(self, filename: str, out_name: str = "out.pdf") -> List[str]:
         """Build the SAFE argv for the fake convert: python shim + literal args.
 
@@ -218,19 +237,21 @@ class SandboxRunner:
                 "no POSIX shell found for sandbox shell execution; set LAB_SHELL"
             )
         translated = self._translate(cmd)
-        # A fake 'convert' so the legitimate part of the command "works" without
-        # a real converter; the shell still interprets any injected metacharacters.
-        prelude = 'convert() { : > "${2:-out.pdf}"; echo "converted $1 -> ${2:-out.pdf}"; }; '
-        full = prelude + translated
+        # Provide a real `convert` on PATH (a tiny shim), like a box with an
+        # image tool installed — so the command runs naturally and the shell
+        # still interprets any injected metacharacters in the string.
+        env = _minimal_env()
+        shim_dir = self._write_convert_shim()
+        env["PATH"] = shim_dir + os.pathsep + env.get("PATH", "")
         timed_out = False
         try:
             proc = subprocess.run(
-                [shell, "-c", full],
+                [shell, "-c", translated],
                 cwd=wd,
                 capture_output=True,
                 text=True,
                 timeout=self.timeout,
-                env=_minimal_env(),
+                env=env,
                 shell=False,  # we invoke the shell explicitly with an argv
             )
             exit_code: Optional[int] = proc.returncode
