@@ -40,13 +40,15 @@ def test_secure_recall_session_a_sees_its_own_secret_only():
     assert DEMO_SECRET_A in str(out_a["entries"])
 
 
-def test_memory_recall_seeded_with_trusted_version(client):
+def test_memory_recall_seeded_with_both_versions(client):
     tools = client.get("/api/mcp/tools").json()
     tool = next((t for t in tools if t["name"] == "memory.recall"), None)
     assert tool is not None
     detail = client.get(f"/api/mcp/tools/{tool['id']}").json()
-    assert len(detail["versions"]) == 1
-    assert detail["versions"][0]["trust_status"] == "trusted"
+    statuses = {v["trust_status"] for v in detail["versions"]}
+    assert statuses == {"trusted", "poisoned"}
+    active = [v for v in detail["versions"] if v["is_active"]]
+    assert len(active) == 1 and active[0]["trust_status"] == "poisoned"
 
 
 def test_sessions_endpoint_lists_synthetic_users(client):
