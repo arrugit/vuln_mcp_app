@@ -64,7 +64,11 @@ phases must not modify already-finished code.
   OWASP-mapping / test-scenarios filled for MCP05, README updated, final
   verification (13-point).
 - **MCP05 STATUS: COMPLETE and LOCKED.** Do not modify MCP03/MCP05 code later.
-- Active vulnerability: **none** (MCP10 is next — awaiting owner approval).
+- **MCP10 (`phase/mcp10-*`): COMPLETE & LOCKED** — `memory.recall` missing
+  ownership filter (Session B reads Session A's `DEMO_SECRET_A`) + session-scoped
+  secure counterpart; deterministic; evidence `context_leak` / telemetry; reset;
+  MCP10 tab + sessions view + tool-def diff; docs; tests.
+- Active vulnerability: **none** — all three labs (MCP03/MCP05/MCP10) COMPLETE.
 
 ## MCP05 — final verification (13-point checklist, Phase D)
 
@@ -109,7 +113,10 @@ FastAPI serves `frontend/dist` at `/` when present (SPA), and the API under
 | `phase/mcp05-vulnerability` | MCP05 Phase B | **complete, committed** |
 | `phase/mcp05-ui-tests` | MCP05 Phase C | **complete, committed** |
 | `phase/mcp05-finalization` | MCP05 Phase D | **complete, committed** |
-| (mcp10-* branches) | later | pending |
+| `phase/mcp10-foundation` | MCP10 Phase A | **complete, committed** |
+| `phase/mcp10-vulnerability` | MCP10 Phase B | **complete, committed** |
+| `phase/mcp10-ui-tests` | MCP10 Phase C | **complete, committed** |
+| `phase/mcp10-finalization` | MCP10 Phase D | **complete, committed** |
 
 ## Vulnerability status
 
@@ -119,7 +126,26 @@ FastAPI serves `frontend/dist` at `/` when present (SPA), and the API under
   concatenation + secure validate/argv counterpart; deterministic `/work/marker`;
   constrained in-process subprocess sandbox (D-08); evidence + telemetry; reset;
   full UI incl. tool-def diff; docs; tests.
-- **MCP10:** NOT STARTED (scaffold catalog row only).
+- **MCP10:** ✅ COMPLETE & LOCKED (all four phases). Missing-ownership
+  `memory.recall` (cross-session leak of `DEMO_SECRET_A`) + session-scoped secure
+  counterpart; in-memory context store (Sessions A/B); evidence `context_leak` +
+  telemetry; reset; MCP10 tab + sessions view + tool-def diff; docs; tests.
+
+## MCP10 — final verification (13-point checklist, Phase D)
+
+1. vulnerable mode works — ✅ Session B recall returns Session A's `DEMO_SECRET_A`.
+2. secure mode prevents it — ✅ session-scoped; B sees only B.
+3. exploit deterministic — ✅ in-memory store; repeatable-after-reset test.
+4. reset works — ✅ restores vulnerable baseline + re-seeds sessions + clears evidence.
+5. evidence persisted — ✅ `evidence` (`context_leak`) + `GET /api/evidence`.
+6. telemetry recorded — ✅ tools/list + tools/call + `security_event=context_leak`.
+7. UI demonstrates it — ✅ MCP10 tab: LEARN/CONFIGURE/sessions/exploit/evidence/telemetry/verify/diff.
+8. exploit procedure documented — ✅ GROUND-TRUTH + labs write-up.
+9. enabling code documented — ✅ `memory_recall.py` `all_entries()` (missing owner filter).
+10. observable proof documented — ✅ foreign `session_token` + `DEMO_SECRET_A` in result.
+11. no oracle introduced — ✅ anti-oracle tests pass.
+12. infra not gratuitously vulnerable — ✅ only the missing check; synthetic data.
+13. 500+ meaningful lines/branch — ✅ A/B/C satisfied; D documentation.
 
 ## MCP03 — final verification (13-point checklist, Phase D)
 
@@ -258,10 +284,8 @@ cd frontend && npm test && npx tsc --noEmit
 
 ## Next recommended phase
 
-**MCP10 — Phase A (`phase/mcp10-foundation`)**: lab structure for `memory.recall`,
-synthetic sessions/contexts fixtures (Session A holds `DEMO_SECRET_A`),
-API/registry wiring, evidence/telemetry/reset integration, test + frontend
-scaffolding. Do NOT implement the missing-ownership leak in Phase A (that is
-Phase B). Secure design enforces session-scoped access.
+**All three planted vulnerabilities (MCP03, MCP05, MCP10) are COMPLETE & LOCKED.**
+The MVP scope is fully implemented. Remaining work is optional polish only
+(e.g. broader tests, evidence-bundle export). Do NOT add new vulnerability labs.
 
-**STATUS: MCP03 + MCP05 COMPLETE & LOCKED — WAITING FOR OWNER APPROVAL before MCP10.**
+**STATUS: MVP COMPLETE — MCP03 + MCP05 + MCP10 done, tested, and pushed.**

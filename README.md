@@ -17,7 +17,7 @@ SEC-006).
 |----|-----------|---------------|--------|
 | VULN-MCP03-001 | MCP03 | Tool Poisoning | **implemented** |
 | VULN-MCP05-001 | MCP05 | Command Injection & Execution | **implemented** |
-| VULN-MCP10-001 | MCP10 | Context Injection & Over-Sharing | pending |
+| VULN-MCP10-001 | MCP10 | Context Injection & Over-Sharing | **implemented** |
 
 No additional vulnerability labs are in scope. Each implemented lab ships a
 **VULNERABLE** and a genuinely-fixed **SECURE** mode.
@@ -135,5 +135,5 @@ only) · `GET /api/evidence`.
 
 ## Current state
 
-**MCP03 and MCP05 complete** (all phases). Runs Docker-free via `uvicorn`. MCP10
-is scaffolded in the catalog and not yet built. See `CLAUDE.md`.
+**All three labs complete** (MCP03, MCP05, MCP10). Runs Docker-free via
+`uvicorn`. See `CLAUDE.md`.

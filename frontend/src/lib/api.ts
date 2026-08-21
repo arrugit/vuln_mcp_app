@@ -11,6 +11,7 @@ import type {
   MCPToolDetail,
   MCPToolSummary,
   Mode,
+  SessionSummary,
   TelemetryEventView,
 } from "./types";
 
@@ -63,4 +64,5 @@ export const api = {
     postJSON<{ doc_id: string; added: boolean }>(`/labs/${labId}/docs`, doc),
   llmProbe: (labId: number, docId: string) =>
     postJSON<Record<string, unknown>>(`/labs/${labId}/llm`, { doc_id: docId }),
+  listSessions: (labId: number) => getJSON<SessionSummary[]>(`/labs/${labId}/sessions`),
 };

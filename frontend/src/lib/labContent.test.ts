@@ -18,6 +18,13 @@ describe("LAB_CONTENT", () => {
     expect(c.exactCall).toContain("report.export");
   });
 
+  it("MCP10 pre-fills Session B token and points at the missing owner filter", () => {
+    const c = LAB_CONTENT["mcp10-context-oversharing"];
+    expect(c.prefill.session_token).toContain("bob");
+    expect(c.enablingCode).toContain("memory_recall.py");
+    expect(c.exactCall).toContain("memory.recall");
+  });
+
   it("every lab entry has learn items and remediation bullets", () => {
     for (const c of Object.values(LAB_CONTENT)) {
       expect(c.learn.length).toBeGreaterThan(0);
