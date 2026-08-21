@@ -62,17 +62,24 @@ verification procedure.
 
 ---
 
-## Scenario S-MCP10 — Context Over-Sharing (`VULN-MCP10-001`) — PENDING
+## Scenario S-MCP10 — Context Over-Sharing (`VULN-MCP10-001`) — IMPLEMENTED
 
 | Field | Value |
 |---|---|
 | **Objective** | Detect cross-session context leakage (missing ownership check) |
-| **Trigger (planned)** | Session B: `memory.recall {"session_token":"<B>","query":"…"}` |
-| **Expected evidence (planned)** | Session A's Project "Orion" entry + `DEMO_SECRET_A` (foreign `session_id`) |
+| **Target config** | MCP10 mode = `vulnerable` (baseline) |
+| **Trigger** | Session B: `memory.recall {"session_token":"sess-bob-b2b2b2","query":"…"}` |
+| **Expected vulnerable behaviour** | result contains Session A's Orion entry + `DEMO_SECRET_A` (foreign `session_token`) |
+| **Expected evidence** | `context_leak` evidence (foreign_entries listed); telemetry `security_event=context_leak`; two `memory.recall` versions diff-able |
 | **Expected OWASP class / severity** | MCP10 / High |
-| **Secure-mode (planned)** | session-scoped authorization → B sees only B |
+| **Expected detection result** | Detected (authorization/behavioural: foreign-session data in the result) |
+| **Secure-mode behaviour** | mode = `secure` → session-scoped; B sees only B; evidence `context_recall`; FYP should report nothing |
+| **Reset** | `POST /api/labs/{id}/reset` → baseline `vulnerable`, evidence cleared, identical evidence on replay |
 
-Not implemented yet.
+**Automated coverage:** `tests/test_mcp10_security.py`,
+`tests/test_mcp10_integration.py`, `tests/test_ground_truth_verification.py`.
+
+**Manual steps:** see `docs/GROUND-TRUTH.md` → VULN-MCP10-001.
 
 ---
 

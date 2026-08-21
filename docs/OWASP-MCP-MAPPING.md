@@ -18,7 +18,7 @@ renumbers/renames.
 | MCP07 | Insufficient Authentication & Authorization | no |
 | MCP08 | Lack of Audit and Telemetry | infra only (telemetry) — NOT a lab |
 | MCP09 | Shadow MCP Servers | no |
-| **MCP10** | **Context Injection & Over-Sharing** | **yes — VULN-MCP10-001 (pending)** |
+| **MCP10** | **Context Injection & Over-Sharing** | **yes — VULN-MCP10-001 (implemented)** |
 
 ## Mapping detail
 
@@ -48,12 +48,14 @@ renumbers/renames.
 - **Not MCP03:** the flaw is in the handler's command construction, not the tool
   metadata (the stored definitions differ only to make the diff visible).
 
-### MCP10 — Context Injection & Over-Sharing → `VULN-MCP10-001` (pending)
+### MCP10 — Context Injection & Over-Sharing → `VULN-MCP10-001` (implemented)
 
 - **Why MCP10:** shared context crosses a session/user boundary because an
   ownership check is missing — MCP-native context isolation failure.
 - **Detector capability exercised:** behavioural/authorization testing across
-  sessions.
+  sessions (recall as one user, look for another user's data).
+- **Component:** `mcp_servers/vulnerable/tools/memory_recall.py`
+  (`get_context_store().all_entries()` — no owner filter).
 
 ## Note on MCP08 (telemetry)
 

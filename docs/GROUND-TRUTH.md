@@ -5,8 +5,7 @@
 > lives ONLY here and in the controlled tests — never in a runtime API (SEC-006 /
 > GT-003). This file is committed (it is NOT `PRD.md`/`TDD.md`, which stay local).
 
-Scope: exactly three labs — MCP03, MCP05, MCP10. Implemented so far: **MCP03**
-and **MCP05**. The MCP10 entry is a placeholder until that lab is built.
+Scope: exactly three labs — MCP03, MCP05, MCP10. **All three are implemented.**
 
 ---
 
@@ -16,7 +15,7 @@ and **MCP05**. The MCP10 entry is a placeholder until that lab is built.
 |----|-------|---------------|-----------|---------|-------------------|--------------------|
 | VULN-MCP03-001 | MCP03 | Tool Poisoning | `docs.fetch` render-context wiring | `docs.fetch {"doc_id":"onboarding-notes"}` (or add a doc with `{{ config.api_key }}`) | article body returned with `DEMO_SECRET_A` rendered in; evidence `metadata_poison`; telemetry `security_event=secret_leak` | Dataflow: untrusted document content → template scope holding config → secret in tool output |
 | VULN-MCP05-001 | MCP05 | Command Injection & Execution | `report.export` command construction | `report.export {"filename":"a.txt; echo PWNED > /work/marker"}` | constructed command with injected `; echo PWNED` + `/work/marker` created; evidence `command_injection`; telemetry `security_event=command_injection` | Dataflow: untrusted arg → shell string → exec sink |
-| VULN-MCP10-001 | MCP10 | Context Injection & Over-Sharing | `memory.recall` access scoping | `memory.recall {"session_token":"<B>","query":"…"}` | foreign session record incl. `DEMO_SECRET_A` | *(pending — lab not built)* |
+| VULN-MCP10-001 | MCP10 | Context Injection & Over-Sharing | `memory.recall` access scoping | `memory.recall {"session_token":"sess-bob-b2b2b2","query":"…"}` | entries from a foreign `session_token` incl. `DEMO_SECRET_A`; evidence `context_leak`; telemetry `security_event=context_leak` | Behavioural/authz: recall as one session returns another session's data |
 
 ---
 
@@ -240,8 +239,85 @@ Machine-checkable: `tests/test_mcp05_security.py`, `tests/test_mcp05_integration
 `POST /api/labs/{id}/reset` clears runtime state, re-seeds, restores baseline
 mode (`vulnerable`), and flips the active `report.export` version to unsafe.
 
-## VULN-MCP10-001 — Context Injection & Over-Sharing (PENDING)
+## VULN-MCP10-001 — Context Injection & Over-Sharing (IMPLEMENTED)
 
-Not implemented yet. Planned per TDD §17: `memory.recall` returns context without
-an ownership check; Session B receives Session A's `DEMO_SECRET_A`. Enabling code
-(planned): `mcp_servers/vulnerable/tools/memory_recall.py`.
+| Field | Value |
+|---|---|
+| **Vulnerability ID** | `VULN-MCP10-001` |
+| **OWASP MCP category** | MCP10 — Context Injection & Over-Sharing |
+| **Name** | Cross-session context leak via missing ownership check in `memory.recall` |
+| **Vulnerable component** | `mcp_servers/vulnerable/tools/memory_recall.py` |
+| **Vulnerable tool** | `memory.recall` (MCP `tools/call`) |
+| **Attack surface** | Session/context isolation boundary |
+| **Severity** | High · **Baseline mode** `vulnerable` |
+| **Preconditions** | MCP10 lab in `vulnerable` mode (default). |
+
+### The bug (how it is exploited)
+
+`memory.recall` accepts the caller's `session_token` but never scopes the lookup
+to that session:
+
+```python
+# mcp_servers/vulnerable/tools/memory_recall.py -> memory_recall()
+entries = get_context_store().all_entries()   # every session's entries (no owner filter)
+```
+
+The secure variant uses `store.entries_for(token)` (caller-scoped). This missing
+`WHERE owner = caller` check is a classic broken-access-control / IDOR mistake.
+
+Synthetic data (`labs/mcp10_context_oversharing/fixtures.py`): Session A
+(`sess-alice-a1a1`, "User A") owns Project Orion + `api_token = DEMO_SECRET_A`;
+Session B (`sess-bob-b2b2b2`, "User B") owns only benign notes.
+
+### Trigger / exact exploit input (FR-051a / GT-005)
+
+```
+memory.recall {"session_token": "sess-bob-b2b2b2", "query": "what do you remember?"}
+```
+
+### Enabling code location (FR-051b)
+
+`mcp_servers/vulnerable/tools/memory_recall.py`, function `memory_recall()`:
+`entries = get_context_store().all_entries()` (missing ownership scope). Banner:
+`# INTENTIONALLY VULNERABLE — VULN-MCP10-001 — see docs/GROUND-TRUTH.md`.
+
+### Vulnerable behaviour / observable proof (FR-051c)
+
+Recalling as Session B returns entries whose `session_token` is Session A's,
+including `DEMO_SECRET_A`. Evidence `kind=context_leak`
+(`raw_signal.foreign_entries` lists the leaked records); telemetry
+`security_event=context_leak`.
+
+### Expected scanner observation
+
+- **Behavioural / authorization:** call `memory.recall` as one session and
+  observe another session's data (foreign `session_token`) in the result.
+
+### Secure behaviour (SEC-007)
+
+`mcp_servers/secure/tools/memory_recall.py` scopes to `entries_for(caller)`, so
+Session B receives only Session B's entries; `DEMO_SECRET_A` never appears.
+Evidence `kind=context_recall`; no `security_event`.
+
+### Remediation
+
+- Enforce ownership: scope every read to the authenticated caller's session.
+- Filter at the data layer (`WHERE session = caller`), not just in the UI.
+- Deny-by-default; never trust a client-supplied id without an authorization check.
+
+### Manual verification procedure (GT-004)
+
+1. Confirm MCP10 is `vulnerable` (baseline). `GET /api/labs/{id}/sessions` shows
+   the two synthetic users + tokens.
+2. Recall as Session B → result contains User A's Orion entry + `DEMO_SECRET_A`;
+   evidence `context_leak`.
+3. Toggle **Secure**; re-run; B sees only B; evidence `context_recall`.
+4. **Reset**; confirm `vulnerable` baseline and identical evidence on re-run.
+
+Machine-checkable: `tests/test_mcp10_security.py`, `tests/test_mcp10_integration.py`.
+
+### Reset procedure (RST-001)
+
+`POST /api/labs/{id}/reset` clears runtime state, re-seeds, restores baseline
+mode (`vulnerable`), flips the active `memory.recall` version, and re-seeds the
+synthetic sessions/contexts.

@@ -38,6 +38,15 @@ GROUND_TRUTH = [
         "proof": lambda r: r["result"].get("marker_present") is True,
         "secure_proof": lambda r: r["result"].get("marker_present") is False,
     },
+    {
+        "slug": "mcp10-context-oversharing",
+        "vuln_code": "VULN-MCP10-001",
+        "params": {"session_token": "sess-bob-b2b2b2"},
+        "vuln_kind": "context_leak",
+        "secure_kind": "context_recall",
+        "proof": lambda r: r.get("contains_foreign_secret") is True,
+        "secure_proof": lambda r: r.get("leaked_from_other_session") is False,
+    },
 ]
 
 
