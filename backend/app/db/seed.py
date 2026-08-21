@@ -98,7 +98,11 @@ LAB_CATALOG = [
 SERVER_NAME = "local-mcp-server"
 
 # Labs whose vulnerability is implemented (drives catalog status).
-IMPLEMENTED_LABS = {"mcp03-tool-poisoning", "mcp05-command-injection"}
+IMPLEMENTED_LABS = {
+    "mcp03-tool-poisoning",
+    "mcp05-command-injection",
+    "mcp10-context-oversharing",
+}
 
 # Baseline (reset) mode per lab. An implemented lab defaults to the VULNERABLE
 # target state (TDD §18) so the FYP evaluates a vulnerable target by default;
@@ -107,7 +111,7 @@ IMPLEMENTED_LABS = {"mcp03-tool-poisoning", "mcp05-command-injection"}
 BASELINE_MODES = {
     "mcp03-tool-poisoning": "vulnerable",
     "mcp05-command-injection": "vulnerable",
-    "mcp10-context-oversharing": "secure",
+    "mcp10-context-oversharing": "vulnerable",
 }
 
 
@@ -249,12 +253,13 @@ def _seed_report_export_tool(session: Session, *, server_id: int) -> None:
 
 
 def _seed_memory_recall_tool(session: Session, *, server_id: int) -> None:
-    """Seed the MCP10 ``memory.recall`` tool with its TRUSTED version (Phase A).
+    """Seed the MCP10 ``memory.recall`` tool with BOTH stored versions (FR-013).
 
-    Phase A seeds only the ``trusted`` (session-scoped) definition. Phase B adds
-    the ``poisoned`` (missing-ownership-check) version + the baseline flip.
+    ``trusted`` = session-scoped; ``poisoned`` = missing-ownership-check. The
+    active version tracks the lab's baseline mode (vulnerable -> poisoned active).
     """
     from mcp_servers.secure.tools.memory_recall import CLEAN_MEMORY_RECALL_DEFINITION
+    from mcp_servers.vulnerable.tools.memory_recall import MEMORY_RECALL_DEFINITION
 
     existing = session.exec(
         select(MCPTool).where(MCPTool.name == "memory.recall")
@@ -262,29 +267,44 @@ def _seed_memory_recall_tool(session: Session, *, server_id: int) -> None:
     if existing is not None:
         return
 
+    baseline_mode = BASELINE_MODES.get("mcp10-context-oversharing", "secure")
+    poisoned_active = baseline_mode == "vulnerable"
+    active_def = (
+        MEMORY_RECALL_DEFINITION if poisoned_active else CLEAN_MEMORY_RECALL_DEFINITION
+    )
+
     tool = MCPTool(
         server_id=server_id,
         name="memory.recall",
-        description=CLEAN_MEMORY_RECALL_DEFINITION["description"],
-        input_schema=json.dumps(CLEAN_MEMORY_RECALL_DEFINITION["inputSchema"], sort_keys=True),
-        output_schema=json.dumps(CLEAN_MEMORY_RECALL_DEFINITION["outputSchema"], sort_keys=True),
+        description=active_def["description"],
+        input_schema=json.dumps(active_def["inputSchema"], sort_keys=True),
+        output_schema=json.dumps(active_def["outputSchema"], sort_keys=True),
         risk="low",
     )
     session.add(tool)
     session.commit()
     session.refresh(tool)
 
-    version = ToolVersion(
+    trusted = ToolVersion(
         tool_id=tool.id,
         version=1,
         definition=json.dumps(CLEAN_MEMORY_RECALL_DEFINITION, sort_keys=True),
         trust_status="trusted",
-        is_active=True,
+        is_active=not poisoned_active,
     )
-    session.add(version)
+    poisoned = ToolVersion(
+        tool_id=tool.id,
+        version=2,
+        definition=json.dumps(MEMORY_RECALL_DEFINITION, sort_keys=True),
+        trust_status="poisoned",
+        is_active=poisoned_active,
+    )
+    session.add(trusted)
+    session.add(poisoned)
     session.commit()
-    session.refresh(version)
-    tool.current_version_id = version.id
+    session.refresh(trusted)
+    session.refresh(poisoned)
+    tool.current_version_id = poisoned.id if poisoned_active else trusted.id
     session.add(tool)
     session.commit()
 

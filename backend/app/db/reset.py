@@ -85,6 +85,7 @@ def sync_docs_fetch_active_version(session: Session, mode: str) -> None:
 LAB_TOOL_BY_SLUG = {
     "mcp03-tool-poisoning": "docs.fetch",
     "mcp05-command-injection": "report.export",
+    "mcp10-context-oversharing": "memory.recall",
 }
 
 
