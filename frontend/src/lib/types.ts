@@ -59,6 +59,13 @@ export interface DocSummary {
   seeded: boolean;
 }
 
+export interface SessionSummary {
+  session_token: string;
+  user_label: string;
+  context: string;
+  entry_keys: string[];
+}
+
 export interface MCPToolSummary {
   id: number;
   server_id: number;

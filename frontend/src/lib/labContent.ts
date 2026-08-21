@@ -118,4 +118,54 @@ export const LAB_CONTENT: Record<string, LabContent> = {
       "shows the injected '; echo PWNED'. In SECURE mode the input is rejected and " +
       "no marker is created.",
   },
+
+  "mcp10-context-oversharing": {
+    prefill: { session_token: "sess-bob-b2b2b2", query: "what do you remember?" },
+    runLabel: "Recall as Session B",
+    enablingCode:
+      "mcp_servers/vulnerable/tools/memory_recall.py — entries = store.all_entries() " +
+      "(no ownership filter); the caller's session_token is accepted but never used to scope.",
+    exactCall:
+      'memory.recall {"session_token": "sess-bob-b2b2b2", "query": "what do you remember?"}',
+    learn: [
+      {
+        heading: "What",
+        body:
+          "Context over-sharing: memory.recall is supposed to return only the " +
+          "calling session's remembered entries, but the ownership check is " +
+          "missing, so it returns every session's entries.",
+      },
+      {
+        heading: "Where",
+        body:
+          "memory.recall. It accepts the caller's session_token but reads " +
+          "store.all_entries() without scoping to that session (a missing " +
+          "WHERE-owner filter — broken access control / IDOR).",
+      },
+      {
+        heading: "How",
+        body:
+          "Recall as Session B (User B). In VULNERABLE mode the result contains " +
+          "Session A's (User A) Project Orion entry and api_token (DEMO_SECRET_A) — " +
+          "data B must never see. In SECURE mode B receives only B's entries.",
+      },
+      {
+        heading: "Impact",
+        body:
+          "One user reads another user's private memory / secrets. Detection is " +
+          "behavioural/authorization testing: recall as one session, check for " +
+          "another session's data in the result.",
+      },
+    ],
+    remediation: [
+      "Enforce ownership: scope every read to the authenticated caller's session.",
+      "Filter at the data layer (WHERE session = caller), not just in the UI.",
+      "Deny-by-default access; never trust a client-supplied id without a check.",
+      "Add tests that recall as one user and assert no other user's data appears.",
+    ],
+    proof:
+      "Success = evidence kind context_leak and the result contains an entry whose " +
+      "session_token differs from the caller (incl. DEMO_SECRET_A). In SECURE mode " +
+      "only the caller's own entries are returned.",
+  },
 };
