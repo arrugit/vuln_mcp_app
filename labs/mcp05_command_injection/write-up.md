@@ -64,8 +64,8 @@ command runs and writes the marker.
 ## Sandbox containment (SEC-003, D-08)
 
 Execution is a constrained in-process subprocess runner (no Docker): an ephemeral
-`tempfile.mkdtemp()` work dir (the `/work` alias), only a fake `convert` shell
-function is available, a hard timeout, and capped output. The marker is written
+`tempfile.mkdtemp()` work dir (the `/work` alias), only a fake `convert` shim on
+PATH, a hard timeout, and capped output. The marker is written
 inside the throwaway dir and deleted when the run ends — nothing persists on the
 host. Trade-off vs. the old container sandbox is documented in `sandbox/README.md`.
 

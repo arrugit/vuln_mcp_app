@@ -1,21 +1,12 @@
-"""Trusted (clean) ``docs.fetch`` tool — MCP03 lab, SECURE variant.
+"""Secure ``docs.fetch`` tool — MCP03 lab, SECURE variant.
 
-This is the *safe* implementation of the tool whose poisoned twin (added in
-Phase B under ``mcp_servers/vulnerable/tools/docs_fetch.py``) carries the MCP03
-Tool Poisoning vulnerability.
+The docs service renders help articles that may contain ``{{ ... }}`` template
+placeholders. The security-relevant decision is *what the renderer can see*.
 
-Why this file is safe
----------------------
-* **Clean metadata.** The ``description`` contains a plain, factual sentence and
-  NO embedded instruction telling a model/agent to do anything extra. There is
-  nothing for a metadata-trust policy to strip.
-* **No secret-reading branch.** The handler reads ONLY the synthetic document
-  corpus (``fixtures.get_document``). It never references ``DEMO_SECRET_A``.
-* **Deterministic output.** Same ``doc_id`` in -> same document out.
-
-Phase A registers THIS clean variant in both the secure and vulnerable
-registries, so the foundation ships with no poisoning. Phase B introduces the
-poisoned variant and points the vulnerable registry at it.
+This secure variant builds the template context from an **allow-listed subset of
+the config** (``PUBLIC_CONFIG_KEYS``) — display values only, never the
+credential. So a document that references ``{{ config.api_key }}`` finds nothing
+to resolve and the placeholder is left inert. Least authority by construction.
 """
 from __future__ import annotations
 
@@ -23,14 +14,12 @@ from typing import Any, Dict
 
 from mcp_servers.common.registry import Tool, ToolRegistry
 
-# Single source of truth for the CLEAN tool definition. The DB seed imports this
-# so the catalog (and the future trusted-vs-poisoned diff, FR-013) matches the
-# runtime registry exactly.
 CLEAN_DOCS_FETCH_DEFINITION: Dict[str, Any] = {
     "name": "docs.fetch",
-    # Clean description: factual, no hidden instruction. Contrast this with the
-    # poisoned description added in Phase B.
-    "description": "Fetch a synthetic document from the local docs service by id.",
+    "description": (
+        "Fetch a help article by id. Article bodies may use {{ config.<key> }} "
+        "placeholders for dynamic values (app name, support email, version)."
+    ),
     "inputSchema": {
         "type": "object",
         "properties": {"doc_id": {"type": "string"}},
@@ -48,31 +37,32 @@ CLEAN_DOCS_FETCH_DEFINITION: Dict[str, Any] = {
 }
 
 
-def clean_docs_fetch(args: Dict[str, Any]) -> Dict[str, Any]:
-    """Trusted handler: return ONLY the requested synthetic document.
+def _safe_context() -> Dict[str, Any]:
+    """Template context limited to publicly-safe config values (allow-list)."""
+    from labs.mcp03_tool_poisoning.fixtures import APP_CONFIG, PUBLIC_CONFIG_KEYS
 
-    Reads the document corpus and nothing else. There is no code path here that
-    touches the synthetic secret — that is exactly what makes this the secure
-    variant (SEC-007).
-    """
-    # Lazy import so the mcp_servers package has no hard dependency on the labs
-    # package at import time (keeps the trees loosely coupled).
-    from labs.mcp03_tool_poisoning.fixtures import get_document
+    return {"config": {k: APP_CONFIG[k] for k in PUBLIC_CONFIG_KEYS}}
+
+
+def clean_docs_fetch(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Fetch + render a document with a minimal, secret-free template context."""
+    from labs.mcp03_tool_poisoning.fixtures import get_store
+    from labs.mcp03_tool_poisoning.templating import render
 
     doc_id = str(args.get("doc_id", ""))
-    doc = get_document(doc_id)
+    doc = get_store().get(doc_id)
     if doc is None:
         return {"doc_id": doc_id, "title": None, "body": None, "found": False}
     return {
         "doc_id": doc_id,
-        "title": doc["title"],
-        "body": doc["body"],
+        "title": doc.title,
+        "body": render(doc.body, _safe_context()),  # narrow context => no secret
         "found": True,
     }
 
 
 def register_docs_fetch(registry: ToolRegistry) -> None:
-    """Register the clean docs.fetch tool onto a registry (idempotent-safe)."""
+    """Register the secure docs.fetch tool (idempotent-safe)."""
     if registry.has("docs.fetch"):
         return
     registry.register(

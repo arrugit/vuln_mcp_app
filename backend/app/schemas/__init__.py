@@ -35,6 +35,24 @@ class ToolCallRequest(BaseModel):
     args: dict[str, Any] = Field(default_factory=dict)
 
 
+class AddDocRequest(BaseModel):
+    """Body for POST /api/labs/{id}/docs — add your own MCP03 help article.
+
+    Validation is minimal on purpose: the body is untrusted user content (that
+    is the realistic entry point for a crafted template payload).
+    """
+
+    doc_id: str = Field(min_length=1, max_length=64, pattern=r"^[\w.-]+$")
+    title: str = Field(default="Untitled", max_length=200)
+    body: str = Field(max_length=4000)
+
+
+class LlmProbeRequest(BaseModel):
+    """Body for POST /api/labs/{id}/llm — optional Ollama-backed demo."""
+
+    doc_id: str = Field(default="product-review", max_length=64)
+
+
 class HealthResponse(BaseModel):
     """GET /api/health — environment status, never a vuln verdict (FR-005)."""
 

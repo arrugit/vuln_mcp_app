@@ -12,6 +12,28 @@ hosts exactly **three** planted vulnerabilities and **emits evidence**; it never
 reveals a vulnerability verdict (no oracle, SEC-006). Everything is local,
 synthetic, sandboxed, deterministic, and resettable.
 
+## Rework 2026-08-21 — realistic ("accidental") vulnerabilities
+
+Owner asked for real-world-looking bugs (not obviously-planted), multiple docs +
+add-your-own, and optional Ollama. Decisions: **Both** (deterministic default +
+optional Ollama) and **keep the `# INTENTIONALLY VULNERABLE` banners**.
+
+- **MCP03** is now an **over-broad template render context** bug: the vulnerable
+  `docs.fetch` passes the whole `APP_CONFIG` (incl. `api_key=DEMO_SECRET_A`) into
+  a `{{ }}` renderer, so any article containing `{{ config.api_key }}` (seeded
+  `onboarding-notes`, or a user-added doc) discloses the secret in its body. No
+  hardcoded `leaked_secret` line. Secure = allow-listed context. Multiple docs +
+  `GET/POST /api/labs/{id}/docs` (add-your-own). Optional **Ollama** live demo:
+  `POST /api/labs/{id}/llm` (indirect prompt injection), gated by
+  `ENABLE_LOCAL_LLM`; `qwen3:8b` verified. Files: `labs/mcp03_tool_poisoning/
+  {fixtures.py (DocStore, APP_CONFIG), templating.py}`, both `docs_fetch.py`,
+  `backend/app/services/ollama_client.py`, `mcp03_service.run_llm_probe`.
+- **MCP05** made natural: a real `convert` shim on PATH (was an injected shell
+  function); dropped the loud inline "THE VULNERABILITY" fence (banner kept).
+- Frontend: docs picker + add-your-own in `ExploitRunner`, `LlmDemoPanel`;
+  verdict now derived from emitted evidence kinds (secret is in `body`, not a
+  field). Docs updated: GROUND-TRUTH / OWASP-mapping / write-ups.
+
 ## Scope (fixed — do not expand)
 
 Implement in this exact order, one at a time, gated by owner approval:

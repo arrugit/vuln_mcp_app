@@ -16,11 +16,11 @@ def _mcp03_id(client) -> int:
 
 def test_full_attack_flow_vulnerable(client):
     lab_id = _mcp03_id(client)
-    # Baseline is vulnerable; run the exact exploit call.
+    # Baseline is vulnerable; fetch the internal doc that references the api_key.
     resp = client.post(
-        f"/api/labs/{lab_id}/attack", json={"params": {"doc_id": "welcome"}}
+        f"/api/labs/{lab_id}/attack", json={"params": {"doc_id": "onboarding-notes"}}
     ).json()
-    assert resp["result"]["leaked_secret"] == DEMO_SECRET_A
+    assert DEMO_SECRET_A in resp["result"]["body"]
     run_id = resp["lab_run_id"]
 
     # Evidence endpoint reflects the leak.
@@ -53,9 +53,9 @@ def test_secure_mode_full_flow_has_no_leak(client):
     lab_id = _mcp03_id(client)
     client.post(f"/api/labs/{lab_id}/mode", json={"mode": "secure"})
     resp = client.post(
-        f"/api/labs/{lab_id}/attack", json={"params": {"doc_id": "welcome"}}
+        f"/api/labs/{lab_id}/attack", json={"params": {"doc_id": "onboarding-notes"}}
     ).json()
-    assert "leaked_secret" not in resp["result"]
+    assert DEMO_SECRET_A not in resp["result"]["body"]
     evidence = client.get(f"/api/evidence?lab_run_id={resp['lab_run_id']}").json()
     assert evidence[0]["kind"] == "tool_fetch"
 

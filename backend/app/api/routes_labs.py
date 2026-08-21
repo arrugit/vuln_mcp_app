@@ -12,7 +12,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
-from ..schemas import AttackRequest, ModeRequest, StartRequest
+from ..schemas import (
+    AddDocRequest,
+    AttackRequest,
+    LlmProbeRequest,
+    ModeRequest,
+    StartRequest,
+)
 from ..services import LabService
 from .deps import db_session
 
@@ -128,6 +134,64 @@ def attack_lab(
     if lab is None:
         raise HTTPException(status_code=404, detail="lab not found")
     return run_lab_attack(session, lab, body.params)
+
+
+@router.get("/{lab_id}/docs")
+def list_docs(lab_id: int, session: Session = Depends(db_session)) -> list[dict]:
+    """List the MCP03 help-article corpus (for the docs picker + manual testing)."""
+    service = LabService(session)
+    lab = service.get_lab(lab_id)
+    if lab is None:
+        raise HTTPException(status_code=404, detail="lab not found")
+    if lab.slug != "mcp03-tool-poisoning":
+        raise HTTPException(status_code=400, detail="docs only apply to MCP03")
+    from labs.mcp03_tool_poisoning.fixtures import get_store
+
+    return [
+        {"doc_id": d.doc_id, "title": d.title, "author": d.author, "seeded": d.seeded}
+        for d in get_store().list()
+    ]
+
+
+@router.post("/{lab_id}/docs")
+def add_doc(
+    lab_id: int, body: AddDocRequest, session: Session = Depends(db_session)
+) -> dict:
+    """Add your own help article, then fetch it via the exploit runner.
+
+    This is the realistic untrusted-content entry point: a body containing
+    ``{{ config.api_key }}`` will disclose the credential in VULNERABLE mode and
+    render inert in SECURE mode.
+    """
+    service = LabService(session)
+    lab = service.get_lab(lab_id)
+    if lab is None:
+        raise HTTPException(status_code=404, detail="lab not found")
+    if lab.slug != "mcp03-tool-poisoning":
+        raise HTTPException(status_code=400, detail="docs only apply to MCP03")
+    from labs.mcp03_tool_poisoning.fixtures import get_store
+
+    doc = get_store().add(doc_id=body.doc_id, title=body.title, body=body.body)
+    return {"doc_id": doc.doc_id, "title": doc.title, "added": True}
+
+
+@router.post("/{lab_id}/llm")
+def llm_probe(
+    lab_id: int, body: LlmProbeRequest, session: Session = Depends(db_session)
+) -> dict:
+    """Optional Ollama-backed demo (MCP03): a real local model processes a doc.
+
+    Returns ``available: False`` gracefully when the LLM is off/unreachable.
+    """
+    service = LabService(session)
+    lab = service.get_lab(lab_id)
+    if lab is None:
+        raise HTTPException(status_code=404, detail="lab not found")
+    if lab.slug != "mcp03-tool-poisoning":
+        raise HTTPException(status_code=400, detail="llm demo only applies to MCP03")
+    from ..services.labs.mcp03_service import run_llm_probe
+
+    return run_llm_probe(session, lab, body.doc_id)
 
 
 @router.get("/{lab_id}/telemetry")
